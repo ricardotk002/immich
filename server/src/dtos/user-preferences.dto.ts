@@ -97,6 +97,13 @@ const CastUpdateSchema = z
   .optional()
   .meta({ id: 'CastUpdate' });
 
+const StickerTrainingUpdateSchema = z
+  .object({
+    useEditsForModelTraining: z.boolean().optional().describe('Whether sticker edits can be used for model training'),
+  })
+  .optional()
+  .meta({ id: 'StickerTrainingUpdate' });
+
 const UserPreferencesUpdateSchema = z
   .object({
     albums: AlbumsUpdateSchema,
@@ -110,6 +117,7 @@ const UserPreferencesUpdateSchema = z
     purchase: PurchaseUpdateSchema,
     ratings: RatingsUpdateSchema,
     sharedLinks: SharedLinksUpdateSchema,
+    stickerTraining: StickerTrainingUpdateSchema,
     tags: TagsUpdateSchema,
   })
   .meta({ id: 'UserPreferencesUpdateDto' });
@@ -189,6 +197,12 @@ const CastResponseSchema = z
   })
   .meta({ id: 'CastResponse' });
 
+const StickerTrainingResponseSchema = z
+  .object({
+    useEditsForModelTraining: z.boolean().describe('Whether sticker edits can be used for model training'),
+  })
+  .meta({ id: 'StickerTrainingResponse' });
+
 const UserPreferencesResponseSchema = z
   .object({
     albums: AlbumsResponseSchema,
@@ -197,6 +211,7 @@ const UserPreferencesResponseSchema = z
     people: PeopleResponseSchema,
     ratings: RatingsResponseSchema,
     sharedLinks: SharedLinksResponseSchema,
+    stickerTraining: StickerTrainingResponseSchema,
     tags: TagsResponseSchema,
     emailNotifications: EmailNotificationsResponseSchema,
     download: DownloadResponseSchema,

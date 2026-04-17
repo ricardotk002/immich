@@ -81,6 +81,19 @@ export type SystemConfig = {
       minRecognitionScore: number;
       maxResolution: number;
     };
+    stickerTraining: {
+      enabled: boolean;
+      retrainThreshold: number;
+      sampleWindowSize: number;
+      pythonExecutable: string;
+      trainingScriptPath: string;
+      trainingWorkingDirectory: string;
+      resultJsonPath: string;
+      qualityGate: {
+        minDiceScore: number;
+        maxRuntimeSeconds: number;
+      };
+    };
   };
   map: {
     enabled: boolean;
@@ -272,6 +285,19 @@ export const defaults = Object.freeze<SystemConfig>({
       minDetectionScore: 0.5,
       minRecognitionScore: 0.8,
       maxResolution: 736,
+    },
+    stickerTraining: {
+      enabled: false,
+      retrainThreshold: 5000,
+      sampleWindowSize: 5000,
+      pythonExecutable: 'python3',
+      trainingScriptPath: '',
+      trainingWorkingDirectory: '',
+      resultJsonPath: '',
+      qualityGate: {
+        minDiceScore: 0.8,
+        maxRuntimeSeconds: 14_400,
+      },
     },
   },
   map: {

@@ -173,6 +173,7 @@ export type ConcurrentQueueName = Exclude<
   | QueueName.FacialRecognition
   | QueueName.DuplicateDetection
   | QueueName.BackupDatabase
+  | QueueName.StickerTraining
 >;
 
 export type Jobs = { [K in JobItem['name']]: (JobItem & { name: K })['data'] };
@@ -228,6 +229,15 @@ export interface ISidecarWriteJob extends IEntityJob {
 
 export interface IDeferrableJob extends IEntityJob {
   deferred?: boolean;
+}
+
+export interface IStickerTrainingRunJob extends IBaseJob {
+  runId: string;
+  triggeredAt?: string;
+}
+
+export interface IStickerTrainingEvaluateJob extends IBaseJob {
+  runId: string;
 }
 
 export interface INightlyJob extends IBaseJob {
@@ -387,6 +397,11 @@ export type JobItem =
   // Workflow
   | { name: JobName.WorkflowRun; data: IWorkflowJob }
 
+  // Sticker training
+  | { name: JobName.StickerTrainingCheckThreshold; data?: IBaseJob }
+  | { name: JobName.StickerTrainingRun; data: IStickerTrainingRunJob }
+  | { name: JobName.StickerTrainingEvaluate; data: IStickerTrainingEvaluateJob }
+
   // Editor
   | { name: JobName.AssetEditThumbnailGeneration; data: IEntityJob };
 
@@ -535,6 +550,9 @@ export type UserPreferences = {
   };
   cast: {
     gCastEnabled: boolean;
+  };
+  stickerTraining: {
+    useEditsForModelTraining: boolean;
   };
 };
 

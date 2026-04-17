@@ -243,6 +243,10 @@ export class QueueService extends BaseService {
         return this.jobRepository.queue({ name: JobName.OcrQueueAll, data: { force } });
       }
 
+      case QueueName.StickerTraining: {
+        return this.jobRepository.queue({ name: JobName.StickerTrainingCheckThreshold });
+      }
+
       default: {
         throw new BadRequestException(`Invalid job name: ${name}`);
       }
@@ -255,6 +259,7 @@ export class QueueService extends BaseService {
       QueueName.StorageTemplateMigration,
       QueueName.DuplicateDetection,
       QueueName.BackupDatabase,
+      QueueName.StickerTraining,
     ].includes(name);
   }
 

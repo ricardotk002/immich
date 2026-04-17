@@ -112,6 +112,19 @@ const updatedConfig = Object.freeze<SystemConfig>({
       minRecognitionScore: 0.8,
       maxResolution: 736,
     },
+    stickerTraining: {
+      enabled: false,
+      retrainThreshold: 5000,
+      sampleWindowSize: 5000,
+      pythonExecutable: 'python3',
+      trainingScriptPath: '',
+      trainingWorkingDirectory: '',
+      resultJsonPath: '',
+      qualityGate: {
+        minDiceScore: 0.8,
+        maxRuntimeSeconds: 14_400,
+      },
+    },
   },
   map: {
     enabled: true,

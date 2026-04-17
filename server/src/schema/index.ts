@@ -60,6 +60,11 @@ import { SessionTable } from 'src/schema/tables/session.table';
 import { SharedLinkAssetTable } from 'src/schema/tables/shared-link-asset.table';
 import { SharedLinkTable } from 'src/schema/tables/shared-link.table';
 import { SmartSearchTable } from 'src/schema/tables/smart-search.table';
+import {
+  StickerTrainingCheckpointTable,
+  StickerTrainingRunTable,
+  StickerTrainingSampleTable,
+} from 'src/schema/tables/sticker-training.table';
 import { StackAuditTable } from 'src/schema/tables/stack-audit.table';
 import { StackTable } from 'src/schema/tables/stack.table';
 import { SessionSyncCheckpointTable } from 'src/schema/tables/sync-checkpoint.table';
@@ -117,6 +122,9 @@ export class ImmichDatabase {
     SharedLinkAssetTable,
     SharedLinkTable,
     SmartSearchTable,
+    StickerTrainingSampleTable,
+    StickerTrainingRunTable,
+    StickerTrainingCheckpointTable,
     StackTable,
     StackAuditTable,
     SessionSyncCheckpointTable,
@@ -227,6 +235,10 @@ export interface DB {
   shared_link_asset: SharedLinkAssetTable;
 
   smart_search: SmartSearchTable;
+
+  sticker_training_sample: StickerTrainingSampleTable;
+  sticker_training_run: StickerTrainingRunTable;
+  sticker_training_checkpoint: StickerTrainingCheckpointTable;
 
   stack: StackTable;
   stack_audit: StackAuditTable;

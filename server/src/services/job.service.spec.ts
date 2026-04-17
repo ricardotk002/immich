@@ -85,6 +85,18 @@ describe(JobService.name, () => {
         item: { name: JobName.FacialRecognition, data: { id: 'asset-1' } },
         jobs: [],
       },
+      {
+        item: { name: JobName.StickerTrainingCheckThreshold, data: {} },
+        jobs: [],
+      },
+      {
+        item: { name: JobName.StickerTrainingRun, data: { runId: 'run-1' } },
+        jobs: [],
+      },
+      {
+        item: { name: JobName.StickerTrainingEvaluate, data: { runId: 'run-1' } },
+        jobs: [],
+      },
     ];
 
     for (const { item, jobs, stub } of tests) {

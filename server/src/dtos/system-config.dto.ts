@@ -144,6 +144,23 @@ const SystemConfigMachineLearningSchema = z
     duplicateDetection: DuplicateDetectionConfigSchema,
     facialRecognition: FacialRecognitionConfigSchema,
     ocr: OcrConfigSchema,
+    stickerTraining: z
+      .object({
+        enabled: configBool.describe('Enabled'),
+        retrainThreshold: z.int().min(1).describe('Accepted sample threshold for retraining'),
+        sampleWindowSize: z.int().min(1).describe('Number of recent accepted samples to train on'),
+        pythonExecutable: z.string().min(1).describe('Python executable used for the training run'),
+        trainingScriptPath: z.string().describe('Path to the training script'),
+        trainingWorkingDirectory: z.string().describe('Working directory used when running training'),
+        resultJsonPath: z.string().describe('Path where training writes summary JSON output'),
+        qualityGate: z
+          .object({
+            minDiceScore: z.number().min(0).max(1).describe('Minimum Dice score required for promotion'),
+            maxRuntimeSeconds: z.int().min(1).describe('Maximum allowed training runtime in seconds'),
+          })
+          .meta({ id: 'StickerTrainingQualityGateDto' }),
+      })
+      .meta({ id: 'StickerTrainingConfigDto' }),
   })
   .meta({ id: 'SystemConfigMachineLearningDto' });
 

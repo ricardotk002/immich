@@ -714,6 +714,7 @@ export enum QueueName {
   Ocr = 'ocr',
   Workflow = 'workflow',
   Editor = 'editor',
+  StickerTraining = 'stickerTraining',
 }
 
 export const QueueNameSchema = z.enum(QueueName).describe('Queue name').meta({ id: 'QueueName' });
@@ -806,6 +807,11 @@ export enum JobName {
 
   // Workflow
   WorkflowRun = 'WorkflowRun',
+
+  // Sticker Training
+  StickerTrainingCheckThreshold = 'StickerTrainingCheckThreshold',
+  StickerTrainingRun = 'StickerTrainingRun',
+  StickerTrainingEvaluate = 'StickerTrainingEvaluate',
 }
 
 export const JobNameSchema = z.enum(JobName).describe('Job name').meta({ id: 'JobName' });

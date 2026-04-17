@@ -31,6 +31,7 @@ import { SessionService } from 'src/services/session.service';
 import { SharedLinkService } from 'src/services/shared-link.service';
 import { SmartInfoService } from 'src/services/smart-info.service';
 import { StackService } from 'src/services/stack.service';
+import { StickerTrainingService } from 'src/services/sticker-training.service';
 import { StorageTemplateService } from 'src/services/storage-template.service';
 import { StorageService } from 'src/services/storage.service';
 import { SyncService } from 'src/services/sync.service';
@@ -80,6 +81,7 @@ export const services = [
   SharedLinkService,
   SmartInfoService,
   StackService,
+  StickerTrainingService,
   StorageService,
   StorageTemplateService,
   SyncService,

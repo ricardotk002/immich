@@ -235,6 +235,15 @@ export class JobRepository {
       case JobName.VersionCheck: {
         return { jobId: JobName.VersionCheck };
       }
+      case JobName.StickerTrainingCheckThreshold: {
+        return { jobId: JobName.StickerTrainingCheckThreshold };
+      }
+      case JobName.StickerTrainingRun: {
+        return { jobId: item.data.runId };
+      }
+      case JobName.StickerTrainingEvaluate: {
+        return { jobId: item.data.runId };
+      }
       default: {
         return null;
       }

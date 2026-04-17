@@ -23,7 +23,7 @@ describe(QueueService.name, () => {
     it('should update concurrency', () => {
       sut.onConfigUpdate({ newConfig: defaults, oldConfig: {} as SystemConfig });
 
-      expect(mocks.job.setConcurrency).toHaveBeenCalledTimes(18);
+      expect(mocks.job.setConcurrency).toHaveBeenCalledTimes(19);
       expect(mocks.job.setConcurrency).toHaveBeenNthCalledWith(5, QueueName.FacialRecognition, 1);
       expect(mocks.job.setConcurrency).toHaveBeenNthCalledWith(7, QueueName.DuplicateDetection, 1);
       expect(mocks.job.setConcurrency).toHaveBeenNthCalledWith(8, QueueName.BackgroundTask, 5);
@@ -77,6 +77,7 @@ describe(QueueService.name, () => {
         [QueueName.Ocr]: expected,
         [QueueName.Workflow]: expected,
         [QueueName.Editor]: expected,
+        [QueueName.StickerTraining]: expected,
       });
     });
   });
@@ -213,6 +214,15 @@ describe(QueueService.name, () => {
 
       expect(mocks.job.queue).not.toHaveBeenCalled();
       expect(mocks.job.queueAll).not.toHaveBeenCalled();
+    });
+
+    it('should handle a start sticker training command', async () => {
+      mocks.job.isActive.mockResolvedValue(false);
+      mocks.job.getJobCounts.mockResolvedValue(factory.queueStatistics());
+
+      await sut.runCommandLegacy(QueueName.StickerTraining, { command: QueueCommand.Start, force: false });
+
+      expect(mocks.job.queue).toHaveBeenCalledWith({ name: JobName.StickerTrainingCheckThreshold });
     });
   });
 });
