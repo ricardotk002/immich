@@ -114,6 +114,15 @@ export interface EnvData {
   storage: {
     ignoreMountCheckErrors: boolean;
     mediaLocation?: string;
+    backend: 'disk' | 'minio';
+    minio: {
+      endpoint: string;
+      port: number;
+      accessKey: string;
+      secretKey: string;
+      bucket: string;
+      useSSL: boolean;
+    };
   };
 
   workers: ImmichWorker[];
@@ -366,6 +375,15 @@ const getEnv = (): EnvData => {
     storage: {
       ignoreMountCheckErrors: !!dto.IMMICH_IGNORE_MOUNT_CHECK_ERRORS,
       mediaLocation: dto.IMMICH_MEDIA_LOCATION,
+      backend: dto.STORAGE_BACKEND ?? 'disk',
+      minio: {
+        endpoint: dto.MINIO_ENDPOINT ?? 'minio',
+        port: dto.MINIO_PORT ?? 9000,
+        accessKey: dto.MINIO_ACCESS_KEY ?? '',
+        secretKey: dto.MINIO_SECRET_KEY ?? '',
+        bucket: dto.MINIO_BUCKET ?? 'immich',
+        useSSL: dto.MINIO_USE_SSL ?? false,
+      },
     },
 
     telemetry: {

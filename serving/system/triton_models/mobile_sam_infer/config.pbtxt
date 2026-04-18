@@ -1,0 +1,20 @@
+# GPU inference stage for the ensemble.
+# Receives pre-normalised tensors — no Python CPU work here.
+name: "mobile_sam_infer"
+backend: "python"
+max_batch_size: 0
+
+input [
+  { name: "IMAGE_TENSOR" data_type: TYPE_FP32 dims: [1, 3, 1024, 1024] },
+  { name: "POINT_COORDS" data_type: TYPE_FP32 dims: [1, 5, 2] },
+  { name: "POINT_LABELS" data_type: TYPE_FP32 dims: [1, 5] },
+  { name: "ORIG_SIZE"    data_type: TYPE_FP32 dims: [2] }
+]
+
+output [
+  { name: "MASK"       data_type: TYPE_STRING dims: [1] },
+  { name: "ENCODER_MS" data_type: TYPE_FP32   dims: [1] },
+  { name: "DECODER_MS" data_type: TYPE_FP32   dims: [1] }
+]
+
+instance_group [{ count: 2, kind: KIND_GPU, gpus: [0] }]

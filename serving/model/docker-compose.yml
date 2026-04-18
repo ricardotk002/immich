@@ -1,0 +1,84 @@
+# serving/model/docker-compose.yml
+x-base: &base
+  build:
+    context: .
+    dockerfile: Dockerfile
+  volumes:
+    - model_data:/data
+  environment:
+    DATA_DIR:   /data
+    MODEL_DIR:  /data
+    CKPT_PATH:  /data/mobile_sam.pt
+    NUM_TRIALS: "100"
+  command: python /app/benchmark.py
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  depends_on:
+    download:
+      condition: service_completed_successfully
+
+services:
+
+  download:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - model_data:/data
+    environment:
+      DATA_DIR:  /data
+      MODEL_DIR: /data
+    command: python /app/download_data.py
+
+  pytorch:
+    <<: *base
+    environment:
+      DATA_DIR:   /data
+      MODEL_DIR:  /data
+      CKPT_PATH:  /data/mobile_sam.pt
+      NUM_TRIALS: "100"
+      EXPERIMENT: pytorch
+
+  onnx:
+    <<: *base
+    environment:
+      DATA_DIR:   /data
+      MODEL_DIR:  /data
+      CKPT_PATH:  /data/mobile_sam.pt
+      NUM_TRIALS: "100"
+      EXPERIMENT: onnx
+
+  onnx_quantized:
+    <<: *base
+    environment:
+      DATA_DIR:   /data
+      MODEL_DIR:  /data
+      CKPT_PATH:  /data/mobile_sam.pt
+      NUM_TRIALS: "100"
+      EXPERIMENT: onnx_quantized
+
+  tensorrt:
+    <<: *base
+    environment:
+      DATA_DIR:   /data
+      MODEL_DIR:  /data
+      CKPT_PATH:  /data/mobile_sam.pt
+      NUM_TRIALS: "100"
+      EXPERIMENT: tensorrt
+
+  openvino:
+    <<: *base
+    environment:
+      DATA_DIR:   /data
+      MODEL_DIR:  /data
+      CKPT_PATH:  /data/mobile_sam.pt
+      NUM_TRIALS: "100"
+      EXPERIMENT: openvino
+
+volumes:
+  model_data:

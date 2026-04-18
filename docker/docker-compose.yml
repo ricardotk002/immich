@@ -17,7 +17,7 @@ services:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
     volumes:
-      # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
+      # Not needed when STORAGE_BACKEND=minio — comment out or remove the line below
       - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
     env_file:
@@ -27,9 +27,29 @@ services:
     depends_on:
       - redis
       - database
+      - minio
     restart: always
     healthcheck:
       disable: false
+
+  minio:
+    container_name: immich_minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-immich}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-immich_minio_secret}
+    volumes:
+      - minio-data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    restart: always
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   immich-machine-learning:
     container_name: immich_machine_learning
@@ -74,3 +94,4 @@ services:
 
 volumes:
   model-cache:
+  minio-data:

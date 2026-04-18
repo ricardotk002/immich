@@ -1,0 +1,14 @@
+# serving/system/Dockerfile.client
+FROM nvcr.io/nvidia/tritonserver:24.05-py3-sdk
+
+RUN pip install --no-cache-dir \
+    numpy \
+    Pillow \
+    pycocotools \
+    requests
+
+COPY serving_benchmark.py /app/serving_benchmark.py
+
+WORKDIR /app
+ENTRYPOINT []
+CMD ["python", "serving_benchmark.py"]

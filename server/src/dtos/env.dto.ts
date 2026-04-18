@@ -86,5 +86,12 @@ export const EnvSchema = z
     REDIS_PASSWORD: z.string().optional(),
     REDIS_SOCKET: z.string().optional(),
     REDIS_URL: z.string().optional(),
+    STORAGE_BACKEND: z.enum(['disk', 'minio']).optional(),
+    MINIO_ENDPOINT: z.string().optional(),
+    MINIO_PORT: z.coerce.number().int().optional(),
+    MINIO_ACCESS_KEY: z.string().optional(),
+    MINIO_SECRET_KEY: z.string().optional(),
+    MINIO_BUCKET: z.string().optional(),
+    MINIO_USE_SSL: stringBool.optional(),
   })
   .meta({ id: 'EnvDto' });

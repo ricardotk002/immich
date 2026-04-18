@@ -154,6 +154,24 @@ services:
     healthcheck:
       disable: false
 
+  minio:
+    container_name: immich_minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-immich}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-immich_minio_secret}
+    volumes:
+      - minio-data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   redis:
     container_name: immich_redis
     image: docker.io/valkey/valkey:9@sha256:3b55fbaa0cd93cf0d9d961f405e4dfcc70efe325e2d84da207a0a8e6d8fde4f9
@@ -200,6 +218,7 @@ services:
 
 volumes:
   model_cache:
+  minio-data:
   prometheus_data:
   grafana_data:
   pnpm_cache:

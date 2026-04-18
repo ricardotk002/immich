@@ -22,6 +22,10 @@ const docsMessage = `Please see https://docs.immich.app/administration/system-in
 export class StorageService extends BaseService {
   private detectMediaLocation(): string {
     const envData = this.configRepository.getEnv();
+    if (envData.storage.backend === 'minio') {
+      return '';
+    }
+
     if (envData.storage.mediaLocation) {
       return envData.storage.mediaLocation;
     }
@@ -47,52 +51,56 @@ export class StorageService extends BaseService {
   async onBootstrap() {
     StorageCore.setMediaLocation(this.detectMediaLocation());
 
-    await this.databaseRepository.withLock(DatabaseLock.SystemFileMounts, async () => {
-      const flags =
-        (await this.systemMetadataRepository.get(SystemMetadataKey.SystemFlags)) ||
-        ({ mountChecks: {} } as SystemFlags);
+    const envData = this.configRepository.getEnv();
+    if (envData.storage.backend === 'minio') {
+      this.logger.log('Using MinIO object storage backend — skipping disk mount checks');
+    } else {
+      await this.databaseRepository.withLock(DatabaseLock.SystemFileMounts, async () => {
+        const flags =
+          (await this.systemMetadataRepository.get(SystemMetadataKey.SystemFlags)) ||
+          ({ mountChecks: {} } as SystemFlags);
 
-      if (!flags.mountChecks) {
-        flags.mountChecks = {};
-      }
+        if (!flags.mountChecks) {
+          flags.mountChecks = {};
+        }
 
-      let updated = false;
+        let updated = false;
 
-      this.logger.log(`Verifying system mount folder checks, current state: ${JSON.stringify(flags)}`);
+        this.logger.log(`Verifying system mount folder checks, current state: ${JSON.stringify(flags)}`);
 
-      try {
-        // check each folder exists and is writable
-        for (const folder of Object.values(StorageFolder)) {
-          if (!flags.mountChecks[folder]) {
-            this.logger.log(`Writing initial mount file for the ${folder} folder`);
-            await this.createMountFile(folder);
+        try {
+          // check each folder exists and is writable
+          for (const folder of Object.values(StorageFolder)) {
+            if (!flags.mountChecks[folder]) {
+              this.logger.log(`Writing initial mount file for the ${folder} folder`);
+              await this.createMountFile(folder);
+            }
+
+            await this.verifyReadAccess(folder);
+            await this.verifyWriteAccess(folder);
+
+            if (!flags.mountChecks[folder]) {
+              flags.mountChecks[folder] = true;
+              updated = true;
+            }
           }
 
-          await this.verifyReadAccess(folder);
-          await this.verifyWriteAccess(folder);
+          if (updated) {
+            await this.systemMetadataRepository.set(SystemMetadataKey.SystemFlags, flags);
+            this.logger.log('Successfully enabled system mount folders checks');
+          }
 
-          if (!flags.mountChecks[folder]) {
-            flags.mountChecks[folder] = true;
-            updated = true;
+          this.logger.log('Successfully verified system mount folder checks');
+        } catch (error) {
+          if (envData.storage.ignoreMountCheckErrors) {
+            this.logger.error(error as Error);
+            this.logger.warn('Ignoring mount folder errors');
+          } else {
+            throw error;
           }
         }
-
-        if (updated) {
-          await this.systemMetadataRepository.set(SystemMetadataKey.SystemFlags, flags);
-          this.logger.log('Successfully enabled system mount folders checks');
-        }
-
-        this.logger.log('Successfully verified system mount folder checks');
-      } catch (error) {
-        const envData = this.configRepository.getEnv();
-        if (envData.storage.ignoreMountCheckErrors) {
-          this.logger.error(error as Error);
-          this.logger.warn('Ignoring mount folder errors');
-        } else {
-          throw error;
-        }
-      }
-    });
+      });
+    }
 
     await this.databaseRepository.withLock(DatabaseLock.MediaLocation, async () => {
       const current = StorageCore.getMediaLocation();

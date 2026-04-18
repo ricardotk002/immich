@@ -90,6 +90,15 @@ const envData: EnvData = {
 
   storage: {
     ignoreMountCheckErrors: false,
+    backend: 'disk' as const,
+    minio: {
+      endpoint: 'minio',
+      port: 9000,
+      accessKey: '',
+      secretKey: '',
+      bucket: 'immich',
+      useSSL: false,
+    },
   },
 
   telemetry: {
@@ -110,7 +119,11 @@ const envData: EnvData = {
   noColor: false,
 };
 
-export const mockEnvData = (config: Partial<EnvData>) => ({ ...envData, ...config });
+export const mockEnvData = (config: Omit<Partial<EnvData>, 'storage'> & { storage?: Partial<EnvData['storage']> }) => ({
+  ...envData,
+  ...config,
+  storage: { ...envData.storage, ...(config.storage ?? {}) },
+});
 export const newConfigRepositoryMock = (): Mocked<RepositoryInterface<ConfigRepository>> => {
   return {
     getEnv: vitest.fn().mockReturnValue(mockEnvData({})),
