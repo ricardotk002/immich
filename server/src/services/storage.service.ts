@@ -102,42 +102,44 @@ export class StorageService extends BaseService {
       });
     }
 
-    await this.databaseRepository.withLock(DatabaseLock.MediaLocation, async () => {
-      const current = StorageCore.getMediaLocation();
-      const samples = await this.assetRepository.getFileSamples();
-      const savedValue = await this.systemMetadataRepository.get(SystemMetadataKey.MediaLocation);
-      if (samples.length > 0) {
-        const path = samples[0].path;
+    if (envData.storage.backend !== 'minio') {
+      await this.databaseRepository.withLock(DatabaseLock.MediaLocation, async () => {
+        const current = StorageCore.getMediaLocation();
+        const samples = await this.assetRepository.getFileSamples();
+        const savedValue = await this.systemMetadataRepository.get(SystemMetadataKey.MediaLocation);
+        if (samples.length > 0) {
+          const path = samples[0].path;
 
-        let previous = savedValue?.location || '';
+          let previous = savedValue?.location || '';
 
-        if (!previous && this.configRepository.getEnv().storage.mediaLocation) {
-          previous = current;
-        }
-
-        if (!previous) {
-          previous = path.startsWith('upload/') ? 'upload' : '/usr/src/app/upload';
-        }
-
-        if (previous !== current) {
-          this.logger.log(`Media location changed (from=${previous}, to=${current})`);
-
-          if (!path.startsWith(previous)) {
-            throw new Error(ErrorMessages.InconsistentMediaLocation);
+          if (!previous && this.configRepository.getEnv().storage.mediaLocation) {
+            previous = current;
           }
 
-          this.logger.warn(
-            `Detected a change to media location, performing an automatic migration of file paths from ${previous} to ${current}, this may take awhile`,
-          );
-          await this.databaseRepository.migrateFilePaths(previous, current);
-        }
-      }
+          if (!previous) {
+            previous = path.startsWith('upload/') ? 'upload' : '/usr/src/app/upload';
+          }
 
-      // Only set MediaLocation in systemMetadataRepository if needed
-      if (savedValue?.location !== current) {
-        await this.systemMetadataRepository.set(SystemMetadataKey.MediaLocation, { location: current });
-      }
-    });
+          if (previous !== current) {
+            this.logger.log(`Media location changed (from=${previous}, to=${current})`);
+
+            if (!path.startsWith(previous)) {
+              throw new Error(ErrorMessages.InconsistentMediaLocation);
+            }
+
+            this.logger.warn(
+              `Detected a change to media location, performing an automatic migration of file paths from ${previous} to ${current}, this may take awhile`,
+            );
+            await this.databaseRepository.migrateFilePaths(previous, current);
+          }
+        }
+
+        // Only set MediaLocation in systemMetadataRepository if needed
+        if (savedValue?.location !== current) {
+          await this.systemMetadataRepository.set(SystemMetadataKey.MediaLocation, { location: current });
+        }
+      });
+    }
   }
 
   @OnJob({ name: JobName.FileDelete, queue: QueueName.BackgroundTask })

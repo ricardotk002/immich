@@ -2,9 +2,11 @@ import { AssetMediaController } from 'src/controllers/asset-media.controller';
 import { AssetMediaStatus } from 'src/dtos/asset-media-response.dto';
 import { AssetMetadataKey } from 'src/enum';
 import { LoggingRepository } from 'src/repositories/logging.repository';
+import { StorageRepository } from 'src/repositories/storage.repository';
 import { AssetMediaService } from 'src/services/asset-media.service';
 import request from 'supertest';
 import { factory } from 'test/small.factory';
+import { newStorageRepositoryMock } from 'test/repositories/storage.repository.mock';
 import { automock, ControllerContext, controllerSetup, mockBaseService } from 'test/utils';
 
 const makeUploadDto = (options?: { omit: string }): Record<string, any> => {
@@ -33,6 +35,7 @@ describe(AssetMediaController.name, () => {
     ctx = await controllerSetup(AssetMediaController, [
       { provide: LoggingRepository, useValue: automock(LoggingRepository, { strict: false }) },
       { provide: AssetMediaService, useValue: service },
+      { provide: StorageRepository, useValue: newStorageRepositoryMock() },
     ]);
     return () => ctx.close();
   });

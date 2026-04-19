@@ -45,6 +45,9 @@ import { BaseConfig, ThumbnailConfig } from 'src/utils/media';
 import { mimeTypes } from 'src/utils/mime-types';
 import { clamp, isFaceImportEnabled, isFacialRecognitionEnabled } from 'src/utils/misc';
 import { getOutputDimensions } from 'src/utils/transform';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 interface UpsertFileOptions {
   assetId: string;
@@ -281,9 +284,15 @@ export class MediaService extends BaseService {
       useEdits;
     const convertFullsize = generateFullsize && (!extracted || !mimeTypes.isWebSupportedImage(` .${extracted.format}`));
 
-    const thumbSource = extracted ? extracted.buffer : asset.originalPath;
+    // For object storage backends, download the file to a buffer so Sharp can process it
+    const isObjectStorage = this.configRepository.getEnv().storage.backend === 'minio';
+    const originalInput: string | Buffer = extracted
+      ? extracted.buffer
+      : isObjectStorage
+        ? await this.storageRepository.readFile(asset.originalPath)
+        : asset.originalPath;
     const { data, info, colorspace } = await this.decodeImage(
-      thumbSource,
+      originalInput,
       // only specify orientation to extracted images which don't have EXIF orientation data
       // or it can double rotate the image
       extracted ? asset.exifInfo : { ...asset.exifInfo, orientation: null },
@@ -292,7 +301,7 @@ export class MediaService extends BaseService {
 
     let isTransparent = false;
     if (!extracted && mimeTypes.canBeTransparent(asset.originalPath)) {
-      ({ isTransparent } = await this.mediaRepository.getImageMetadata(asset.originalPath));
+      ({ isTransparent } = await this.mediaRepository.getImageMetadata(originalInput));
     }
 
     return {
@@ -339,8 +348,8 @@ export class MediaService extends BaseService {
     const previewOptions = { ...image.preview, ...baseOptions, format: previewFormat };
     const promises = [
       this.mediaRepository.generateThumbhash(data, baseOptions),
-      this.mediaRepository.generateThumbnail(data, thumbnailOptions, thumbnailFile.path),
-      this.mediaRepository.generateThumbnail(data, previewOptions, previewFile.path),
+      this.mediaRepository.generateThumbnail(data, thumbnailOptions),
+      this.mediaRepository.generateThumbnail(data, previewOptions),
     ];
 
     let fullsizeFile: UpsertFileOptions | undefined;
@@ -361,7 +370,7 @@ export class MediaService extends BaseService {
         quality: image.fullsize.quality,
         progressive: image.fullsize.progressive,
       };
-      promises.push(this.mediaRepository.generateThumbnail(data, fullsizeOptions, fullsizeFile.path));
+      promises.push(this.mediaRepository.generateThumbnail(data, fullsizeOptions));
     } else if (generateFullsize && extracted && extracted.format === RawExtractedFormat.Jpeg) {
       fullsizeFile = this.getImageFile(asset, {
         fileType: AssetFileType.FullSize,
@@ -384,6 +393,14 @@ export class MediaService extends BaseService {
     }
 
     const outputs = await Promise.all(promises);
+    const [, thumbnailBuffer, previewBuffer] = outputs as [Buffer, Buffer, Buffer];
+    await Promise.all([
+      this.storageRepository.createOrOverwriteFile(thumbnailFile.path, thumbnailBuffer),
+      this.storageRepository.createOrOverwriteFile(previewFile.path, previewBuffer),
+      convertFullsize && fullsizeFile
+        ? this.storageRepository.createOrOverwriteFile(fullsizeFile.path, outputs[3] as Buffer)
+        : Promise.resolve(),
+    ]);
 
     if (asset.exifInfo.projectionType === 'EQUIRECTANGULAR') {
       const promises = [
@@ -419,18 +436,23 @@ export class MediaService extends BaseService {
     }
 
     const { ownerId, x1, y1, x2, y2, oldWidth, oldHeight, exifOrientation, previewPath, originalPath } = data;
+    const isObjectStorage = this.configRepository.getEnv().storage.backend === 'minio';
     let inputImage: string | Buffer;
     if (data.type === AssetType.Video) {
       if (!previewPath) {
         this.logger.error(`Could not generate person thumbnail for video ${id}: missing preview path`);
         return JobStatus.Failed;
       }
-      inputImage = previewPath;
+      inputImage = isObjectStorage ? await this.storageRepository.readFile(previewPath) : previewPath;
     } else if (image.extractEmbedded && mimeTypes.isRaw(originalPath)) {
       const extracted = await this.extractImage(originalPath, image.preview.size);
-      inputImage = extracted ? extracted.buffer : originalPath;
+      inputImage = extracted
+        ? extracted.buffer
+        : isObjectStorage
+          ? await this.storageRepository.readFile(originalPath)
+          : originalPath;
     } else {
-      inputImage = originalPath;
+      inputImage = isObjectStorage ? await this.storageRepository.readFile(originalPath) : originalPath;
     }
 
     const { data: decodedImage, info } = await this.mediaRepository.decodeImage(inputImage, {
@@ -462,7 +484,8 @@ export class MediaService extends BaseService {
       ],
     };
 
-    await this.mediaRepository.generateThumbnail(decodedImage, thumbnailOptions, thumbnailPath);
+    const thumbnailBuffer = await this.mediaRepository.generateThumbnail(decodedImage, thumbnailOptions);
+    await this.storageRepository.createOrOverwriteFile(thumbnailPath, thumbnailBuffer);
     await this.personRepository.update({ id, thumbnailPath });
 
     return JobStatus.Success;
@@ -526,6 +549,47 @@ export class MediaService extends BaseService {
     });
     this.storageCore.ensureFolders(previewFile.path);
 
+    const isObjectStorage = this.configRepository.getEnv().storage.backend === 'minio';
+
+    if (isObjectStorage) {
+      // ffmpeg needs a local file path; download from object storage to a temp file
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'immich-video-'));
+      const tmpInput = path.join(tmpDir, `input${path.extname(asset.originalPath)}`);
+      try {
+        const videoBuffer = await this.storageRepository.readFile(asset.originalPath);
+        await fs.writeFile(tmpInput, videoBuffer);
+
+        const { format, audioStreams, videoStreams } = await this.mediaRepository.probe(tmpInput);
+        const mainVideoStream = this.getMainStream(videoStreams);
+        if (!mainVideoStream) {
+          throw new Error(`No video streams found for asset ${asset.id}`);
+        }
+        const mainAudioStream = this.getMainStream(audioStreams);
+
+        const previewConfig = ThumbnailConfig.create({ ...ffmpeg, targetResolution: image.preview.size.toString() });
+        const thumbnailConfig = ThumbnailConfig.create({ ...ffmpeg, targetResolution: image.thumbnail.size.toString() });
+        const previewOptions = previewConfig.getCommand(TranscodeTarget.Video, mainVideoStream, mainAudioStream, format);
+        const thumbnailOptions = thumbnailConfig.getCommand(TranscodeTarget.Video, mainVideoStream, mainAudioStream, format);
+
+        await this.mediaRepository.transcode(tmpInput, this.storageRepository.createWriteStream(previewFile.path), previewOptions);
+        await this.mediaRepository.transcode(tmpInput, this.storageRepository.createWriteStream(thumbnailFile.path), thumbnailOptions);
+
+        const previewBuffer = await this.storageRepository.readFile(previewFile.path);
+        const thumbhash = await this.mediaRepository.generateThumbhash(previewBuffer, {
+          colorspace: image.colorspace,
+          processInvalidImages: process.env.IMMICH_PROCESS_INVALID_IMAGES === 'true',
+        });
+
+        return {
+          files: [previewFile, thumbnailFile],
+          thumbhash,
+          fullsizeDimensions: { width: mainVideoStream.width, height: mainVideoStream.height },
+        };
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    }
+
     const { format, audioStreams, videoStreams } = await this.mediaRepository.probe(asset.originalPath);
     const mainVideoStream = this.getMainStream(videoStreams);
     if (!mainVideoStream) {
@@ -536,12 +600,7 @@ export class MediaService extends BaseService {
     const previewConfig = ThumbnailConfig.create({ ...ffmpeg, targetResolution: image.preview.size.toString() });
     const thumbnailConfig = ThumbnailConfig.create({ ...ffmpeg, targetResolution: image.thumbnail.size.toString() });
     const previewOptions = previewConfig.getCommand(TranscodeTarget.Video, mainVideoStream, mainAudioStream, format);
-    const thumbnailOptions = thumbnailConfig.getCommand(
-      TranscodeTarget.Video,
-      mainVideoStream,
-      mainAudioStream,
-      format,
-    );
+    const thumbnailOptions = thumbnailConfig.getCommand(TranscodeTarget.Video, mainVideoStream, mainAudioStream, format);
 
     await this.mediaRepository.transcode(asset.originalPath, previewFile.path, previewOptions);
     await this.mediaRepository.transcode(asset.originalPath, thumbnailFile.path, thumbnailOptions);
@@ -588,8 +647,42 @@ export class MediaService extends BaseService {
     const output = StorageCore.getEncodedVideoPath(asset);
     this.storageCore.ensureFolders(output);
 
+    const isObjectStorage = this.configRepository.getEnv().storage.backend === 'minio';
+
+    if (isObjectStorage) {
+      // ffmpeg needs local file paths; download input and write output via temp file
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'immich-encode-'));
+      const tmpInput = path.join(tmpDir, `input${path.extname(input)}`);
+      const tmpOutput = path.join(tmpDir, `output${path.extname(output)}`);
+      try {
+        await fs.writeFile(tmpInput, await this.storageRepository.readFile(input));
+        const result = await this.runVideoConversion(asset, tmpInput, tmpOutput);
+        if (result !== JobStatus.Success) {
+          return result;
+        }
+        await this.storageRepository.createOrOverwriteFile(output, await fs.readFile(tmpOutput));
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    } else {
+      const result = await this.runVideoConversion(asset, input, output);
+      if (result !== JobStatus.Success) {
+        return result;
+      }
+    }
+
+    this.logger.log(`Successfully encoded ${asset.id}`);
+    await this.assetRepository.upsertFile({ assetId: asset.id, type: AssetFileType.EncodedVideo, path: output, isEdited: false });
+    return JobStatus.Success;
+  }
+
+  private async runVideoConversion(
+    asset: { id: string; files: AssetFile[] },
+    input: string,
+    output: string,
+  ): Promise<JobStatus> {
     const { videoStreams, audioStreams, format } = await this.mediaRepository.probe(input, {
-      countFrames: this.logger.isLevelEnabled(LogLevel.Debug), // makes frame count more reliable for progress logs
+      countFrames: this.logger.isLevelEnabled(LogLevel.Debug),
     });
     const videoStream = this.getMainStream(videoStreams);
     const audioStream = this.getMainStream(audioStreams);
@@ -613,7 +706,6 @@ export class MediaService extends BaseService {
       } else {
         this.logger.verbose(`Asset ${asset.id} does not require transcoding based on current policy, skipping`);
       }
-
       return JobStatus.Skipped;
     }
 
@@ -654,16 +746,6 @@ export class MediaService extends BaseService {
         await this.mediaRepository.transcode(input, output, command);
       }
     }
-
-    this.logger.log(`Successfully encoded ${asset.id}`);
-
-    await this.assetRepository.upsertFile({
-      assetId: asset.id,
-      type: AssetFileType.EncodedVideo,
-      path: output,
-      isEdited: false,
-    });
-
     return JobStatus.Success;
   }
 

@@ -25,9 +25,12 @@ services:
     ports:
       - '2283:2283'
     depends_on:
-      - redis
-      - database
-      - minio
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      database:
+        condition: service_started
     restart: always
     healthcheck:
       disable: false
@@ -50,6 +53,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  minio-init:
+    container_name: immich_minio_init
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-immich}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-immich_minio_secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-immich}
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY;
+        mc mb --ignore-existing local/$$MINIO_BUCKET;
+        exit 0;
+      "
+    restart: 'no'
 
   immich-machine-learning:
     container_name: immich_machine_learning

@@ -143,13 +143,21 @@ export class MinioStorageRepository implements IStorageRepository {
       params: { Bucket: this.bucket, Key: key, Body: pass },
     });
 
+    // Start consuming immediately so the PassThrough never blocks the pipeline
+    const uploadPromise = upload.done();
+    uploadPromise.catch(() => {});
+
     const proxy = new Writable({
-      write(chunk, encoding, callback) {
-        pass.write(chunk, encoding, callback);
+      write(chunk, _encoding, callback) {
+        if (!pass.write(chunk)) {
+          pass.once('drain', callback);
+        } else {
+          process.nextTick(callback);
+        }
       },
       final(callback) {
         pass.end();
-        upload.done().then(() => callback()).catch(callback);
+        uploadPromise.then(() => callback()).catch(callback);
       },
     });
 
@@ -272,15 +280,6 @@ export class MinioStorageRepository implements IStorageRepository {
     }
   }
 
-  private isNotFound(error: unknown): boolean {
-    return (
-      error !== null &&
-      typeof error === 'object' &&
-      '$metadata' in error &&
-      (error as { $metadata: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404
-    );
-  }
-
   async unlinkDir(prefix: string, _options: { recursive?: boolean; force?: boolean }): Promise<void> {
     const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
     let continuationToken: string | undefined;
@@ -398,5 +397,14 @@ export class MinioStorageRepository implements IStorageRepository {
 
   watch(_paths: string[], _options: ChokidarOptions, _events: Partial<WatchEvents>): () => Promise<void> {
     return () => Promise.resolve();
+  }
+
+  private isNotFound(error: unknown): boolean {
+    return (
+      error !== null &&
+      typeof error === 'object' &&
+      '$metadata' in error &&
+      (error as { $metadata: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404
+    );
   }
 }

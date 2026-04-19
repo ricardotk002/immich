@@ -170,7 +170,7 @@ export class MediaRepository {
     return pipeline;
   }
 
-  async generateThumbnail(input: string | Buffer, options: GenerateThumbnailOptions, output: string): Promise<void> {
+  async generateThumbnail(input: string | Buffer, options: GenerateThumbnailOptions): Promise<Buffer> {
     const pipeline = await this.getImageDecodingPipeline(input, options);
     const decoded = pipeline.toFormat(options.format, {
       quality: options.quality,
@@ -179,7 +179,7 @@ export class MediaRepository {
       progressive: options.progressive,
     });
 
-    await decoded.toFile(output);
+    return decoded.toBuffer();
   }
 
   private async getImageDecodingPipeline(input: string | Buffer, options: DecodeToBufferOptions) {

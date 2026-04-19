@@ -1,4 +1,5 @@
 import { ChokidarOptions } from 'chokidar';
+import { PassThrough } from 'node:stream';
 import { StorageCore } from 'src/cores/storage.core';
 import { StorageRepository, WatchEvents } from 'src/repositories/storage.repository';
 import { RepositoryInterface } from 'src/types';
@@ -52,10 +53,10 @@ export const newStorageRepositoryMock = (): Mocked<RepositoryInterface<StorageRe
     createPlainReadStream: vitest.fn(),
     createGzip: vitest.fn(),
     createGunzip: vitest.fn(),
-    readFile: vitest.fn(),
+    readFile: vitest.fn().mockResolvedValue(Buffer.from('')),
     readTextFile: vitest.fn(),
     createFile: vitest.fn(),
-    createWriteStream: vitest.fn(),
+    createWriteStream: vitest.fn().mockReturnValue(new PassThrough()),
     createOrOverwriteFile: vitest.fn(),
     existsSync: vitest.fn(),
     overwriteFile: vitest.fn(),

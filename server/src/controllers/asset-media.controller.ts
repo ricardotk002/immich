@@ -35,6 +35,7 @@ import { AssetUploadInterceptor } from 'src/middleware/asset-upload.interceptor'
 import { Auth, Authenticated, FileResponse } from 'src/middleware/auth.guard';
 import { FileUploadInterceptor, getFiles } from 'src/middleware/file-upload.interceptor';
 import { LoggingRepository } from 'src/repositories/logging.repository';
+import { StorageRepository } from 'src/repositories/storage.repository';
 import { AssetMediaService } from 'src/services/asset-media.service';
 import { UploadFiles } from 'src/types';
 import { ImmichFileResponse, sendFile } from 'src/utils/file';
@@ -46,6 +47,7 @@ export class AssetMediaController {
   constructor(
     private logger: LoggingRepository,
     private service: AssetMediaService,
+    private storageRepository: StorageRepository,
   ) {}
 
   @Post()
@@ -104,7 +106,7 @@ export class AssetMediaController {
     @Res() res: Response,
     @Next() next: NextFunction,
   ) {
-    await sendFile(res, next, () => this.service.downloadOriginal(auth, id, dto), this.logger);
+    await sendFile(res, next, () => this.service.downloadOriginal(auth, id, dto), this.logger, this.storageRepository);
   }
 
   @Get(':id/thumbnail')
@@ -137,7 +139,7 @@ export class AssetMediaController {
     const viewThumbnailRes = await this.service.viewThumbnail(auth, id, dto);
 
     if (viewThumbnailRes instanceof ImmichFileResponse) {
-      await sendFile(res, next, () => Promise.resolve(viewThumbnailRes), this.logger);
+      await sendFile(res, next, () => Promise.resolve(viewThumbnailRes), this.logger, this.storageRepository);
     } else {
       // viewThumbnailRes is a AssetMediaRedirectResponse
       // which redirects to the original asset or a specific size to make better use of caching
@@ -174,7 +176,7 @@ export class AssetMediaController {
     @Res() res: Response,
     @Next() next: NextFunction,
   ) {
-    await sendFile(res, next, () => this.service.playbackVideo(auth, id), this.logger);
+    await sendFile(res, next, () => this.service.playbackVideo(auth, id), this.logger, this.storageRepository);
   }
 
   @Post('bulk-upload-check')
