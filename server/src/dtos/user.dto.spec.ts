@@ -10,6 +10,12 @@ describe('update user DTO', () => {
     expect(result.success).toBe(true);
     expect(result.data?.email).toEqual(someEmail);
   });
+
+  it('allows mlTrainingOptIn', () => {
+    const result = UserUpdateMeSchema.safeParse({ mlTrainingOptIn: true });
+    expect(result.success).toBe(true);
+    expect(result.data?.mlTrainingOptIn).toBe(true);
+  });
 });
 
 describe('create user DTO', () => {
@@ -55,5 +61,17 @@ describe('create user DTO', () => {
     });
     expect(result.success).toBe(true);
     expect(result.data?.email).toEqual(someEmail);
+  });
+
+  it('allows mlTrainingOptIn', () => {
+    const result = UserAdminCreateSchema.safeParse({
+      email: 'valid@email.com',
+      password: 'password',
+      name: 'name',
+      mlTrainingOptIn: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.mlTrainingOptIn).toBe(true);
   });
 });

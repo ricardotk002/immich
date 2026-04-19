@@ -5,7 +5,7 @@
   import { Route } from '$lib/route';
   import { handleError } from '$lib/utils/handle-error';
   import { signUpAdmin } from '@immich/sdk';
-  import { Alert, Button, Field, Input, PasswordInput, Text } from '@immich/ui';
+  import { Alert, Button, Field, Input, PasswordInput, Switch, Text } from '@immich/ui';
   import { t } from 'svelte-i18n';
   import type { PageData } from './$types';
 
@@ -13,6 +13,7 @@
   let password = $state('');
   let confirmPassword = $state('');
   let name = $state('');
+  let mlTrainingOptIn = $state(false);
   let loading = $state(false);
   let errorMessage = $derived(
     password === confirmPassword || confirmPassword.length === 0 ? '' : $t('password_does_not_match'),
@@ -36,7 +37,7 @@
     errorMessage = '';
 
     try {
-      await signUpAdmin({ signUpDto: { email, password, name } });
+      await signUpAdmin({ signUpDto: { email, password, name, mlTrainingOptIn } });
       await serverConfigManager.loadServerConfig();
       await goto(Route.login());
     } catch (error) {
@@ -68,6 +69,11 @@
 
     <Field label={$t('name')} required>
       <Input bind:value={name} type="text" autocomplete="name" />
+    </Field>
+
+    <Field label={$t('ml_training_opt_in')}>
+      <Switch bind:checked={mlTrainingOptIn} />
+      <Text size="small" color="muted" class="mt-1">{$t('ml_training_opt_in_description')}</Text>
     </Field>
 
     {#if errorMessage}

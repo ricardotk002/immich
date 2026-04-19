@@ -229,6 +229,23 @@ describe(AuthService.name, () => {
       expect(mocks.user.getAdmin).toHaveBeenCalled();
       expect(mocks.user.create).toHaveBeenCalled();
     });
+
+    it('should pass mlTrainingOptIn on signup', async () => {
+      mocks.user.getAdmin.mockResolvedValue(void 0);
+      mocks.user.create.mockResolvedValue({
+        ...userStub.admin,
+        ...dto,
+        mlTrainingOptIn: true,
+        id: 'admin',
+        name: 'immich admin',
+        createdAt: new Date('2021-01-01'),
+        metadata: [] as UserMetadataItem[],
+      } as UserAdmin);
+
+      await sut.adminSignUp({ ...dto, mlTrainingOptIn: true });
+
+      expect(mocks.user.create).toHaveBeenCalledWith(expect.objectContaining({ mlTrainingOptIn: true }));
+    });
   });
 
   describe('validate - socket connections', () => {

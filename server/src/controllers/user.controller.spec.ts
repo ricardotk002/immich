@@ -43,7 +43,7 @@ describe(UserController.name, () => {
       expect(ctx.authenticate).toHaveBeenCalled();
     });
 
-    for (const key of ['email', 'name']) {
+    for (const key of ['email', 'name', 'mlTrainingOptIn']) {
       it(`should not allow null ${key}`, async () => {
         const dto = { [key]: null };
         const { status, body } = await request(ctx.getHttpServer())
@@ -61,6 +61,15 @@ describe(UserController.name, () => {
         .set('Authorization', `Bearer token`)
         .send({ avatarColor: null });
       expect(service.updateMe).toHaveBeenCalledWith(undefined, expect.objectContaining({ avatarColor: null }));
+    });
+
+    it('should allow mlTrainingOptIn', async () => {
+      await request(ctx.getHttpServer())
+        .put(`/users/me`)
+        .set('Authorization', `Bearer token`)
+        .send({ mlTrainingOptIn: true });
+
+      expect(service.updateMe).toHaveBeenCalledWith(undefined, expect.objectContaining({ mlTrainingOptIn: true }));
     });
   });
 

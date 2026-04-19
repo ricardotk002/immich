@@ -17,7 +17,7 @@
   let { data }: Props = $props();
 
   const user = $derived(data.user);
-  let { isAdmin, name, email } = $derived(user);
+  let { isAdmin, name, email, mlTrainingOptIn } = $derived(user);
   let storageLabel = $derived(user.storageLabel || '');
   const previousQuota = $derived(user.quotaSizeInBytes);
 
@@ -47,6 +47,7 @@
       storageLabel,
       quotaSizeInBytes: typeof quotaSize === 'number' ? convertToBytes(quotaSize, ByteUnit.GiB) : null,
       isAdmin,
+      mlTrainingOptIn,
     });
 
     if (success) {
@@ -87,4 +88,8 @@
       <Switch bind:checked={isAdmin} class="mt-4" />
     </Field>
   {/if}
+
+  <Field label={$t('ml_training_opt_in')} class="mt-4">
+    <Switch bind:checked={mlTrainingOptIn} />
+  </Field>
 </FormModal>

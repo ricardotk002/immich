@@ -24,6 +24,7 @@ export class UserFactory {
       profileImagePath: '',
       isAdmin: false,
       shouldChangePassword: false,
+      mlTrainingOptIn: false,
       avatarColor: null,
       deletedAt: null,
       oauthId: '',

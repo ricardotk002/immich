@@ -55,6 +55,20 @@ describe(UserAdminService.name, () => {
         password: expect.anything(),
       });
     });
+
+    it('should create user with mlTrainingOptIn', async () => {
+      mocks.user.getAdmin.mockResolvedValue(userStub.admin);
+      mocks.user.create.mockResolvedValue({ ...userStub.user1, mlTrainingOptIn: true });
+
+      await sut.create({
+        email: userStub.user1.email,
+        name: userStub.user1.name,
+        password: 'password',
+        mlTrainingOptIn: true,
+      });
+
+      expect(mocks.user.create).toBeCalledWith(expect.objectContaining({ mlTrainingOptIn: true }));
+    });
   });
 
   describe('update', () => {
@@ -72,6 +86,18 @@ describe(UserAdminService.name, () => {
 
       expect(mocks.user.getByEmail).toHaveBeenCalledWith(update.email);
       expect(mocks.user.getByStorageLabel).toHaveBeenCalledWith(update.storageLabel);
+    });
+
+    it('should update mlTrainingOptIn', async () => {
+      mocks.user.get.mockResolvedValue(userStub.user1);
+      mocks.user.update.mockResolvedValue({ ...userStub.user1, mlTrainingOptIn: true });
+
+      await sut.update(authStub.admin, userStub.user1.id, { mlTrainingOptIn: true });
+
+      expect(mocks.user.update).toHaveBeenCalledWith(
+        userStub.user1.id,
+        expect.objectContaining({ mlTrainingOptIn: true }),
+      );
     });
 
     it('should not set an empty string for storage label', async () => {
