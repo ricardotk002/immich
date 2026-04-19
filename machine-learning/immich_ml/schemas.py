@@ -24,10 +24,12 @@ class ModelTask(StrEnum):
     FACIAL_RECOGNITION = "facial-recognition"
     SEARCH = "clip"
     OCR = "ocr"
+    SEGMENTATION = "segmentation"
 
 
 class ModelType(StrEnum):
     DETECTION = "detection"
+    PIPELINE = "pipeline"
     RECOGNITION = "recognition"
     TEXTUAL = "textual"
     VISUAL = "visual"
