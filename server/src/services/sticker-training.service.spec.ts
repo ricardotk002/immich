@@ -6,6 +6,22 @@ describe(StickerTrainingService.name, () => {
   let sut: StickerTrainingService;
   let mocks: ServiceMocks;
 
+  const enabledTrainingConfig = {
+    enabled: true,
+    retrainThreshold: 5000,
+    sampleWindowSize: 5000,
+    pythonExecutable: 'python3',
+    trainingScriptPath: '/tmp/train.py',
+    trainingConfigPath: '/tmp/train.yaml',
+    trainingWorkingDirectory: '/tmp',
+    resultJsonPath: '/tmp/sticker-training-result.json',
+    qualityGate: {
+      minDiceScore: 0.8,
+      minIouScore: 0.7,
+      maxRuntimeSeconds: 14_400,
+    },
+  };
+
   beforeEach(() => {
     ({ sut, mocks } = newTestService(StickerTrainingService));
   });
@@ -20,7 +36,7 @@ describe(StickerTrainingService.name, () => {
     });
 
     it('should queue a retrain run at threshold', async () => {
-      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: { enabled: true } } });
+      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: enabledTrainingConfig } });
       mocks.stickerTraining.getCheckpoint.mockResolvedValue(undefined);
       mocks.stickerTraining.countEligibleSince.mockResolvedValue(5000);
       mocks.stickerTraining.hasActiveRun.mockResolvedValue(false);
@@ -36,7 +52,7 @@ describe(StickerTrainingService.name, () => {
     });
 
     it('should skip when there is an active run', async () => {
-      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: { enabled: true } } });
+      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: enabledTrainingConfig } });
       mocks.stickerTraining.getCheckpoint.mockResolvedValue(undefined);
       mocks.stickerTraining.countEligibleSince.mockResolvedValue(5000);
       mocks.stickerTraining.hasActiveRun.mockResolvedValue(true);
@@ -48,10 +64,10 @@ describe(StickerTrainingService.name, () => {
 
   describe('handleEvaluate', () => {
     it('should reject run if quality gate fails', async () => {
-      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: { enabled: true } } });
+      mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { stickerTraining: enabledTrainingConfig } });
       mocks.stickerTraining.getRun.mockResolvedValue({
         id: 'run-1',
-        metrics: { dice: 0.1, runtimeSeconds: 1 },
+        metrics: { dice: 0.9, iou: 0.1, runtimeSeconds: 1 },
       } as never);
 
       await expect(sut.handleEvaluate({ runId: 'run-1' })).resolves.toBe(JobStatus.Skipped);

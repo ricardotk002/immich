@@ -118,10 +118,12 @@ const updatedConfig = Object.freeze<SystemConfig>({
       sampleWindowSize: 5000,
       pythonExecutable: 'python3',
       trainingScriptPath: '',
+      trainingConfigPath: '',
       trainingWorkingDirectory: '',
       resultJsonPath: '',
       qualityGate: {
         minDiceScore: 0.8,
+        minIouScore: 0.7,
         maxRuntimeSeconds: 14_400,
       },
     },

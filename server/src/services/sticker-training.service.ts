@@ -8,7 +8,18 @@ import { JobOf } from 'src/types';
 const CHECKPOINT_KEY = 'default';
 
 type TrainingResultPayload = {
-  metrics?: { dice?: number; runtimeSeconds?: number; [key: string]: unknown };
+  status?: string;
+  metrics?: { dice?: number; iou?: number; runtimeSeconds?: number; [key: string]: unknown };
+  qualityGate?: {
+    passed?: boolean;
+    passDice?: boolean;
+    passIou?: boolean;
+    passRuntime?: boolean;
+    expectedMinDice?: number;
+    expectedMinIou?: number;
+    expectedMaxRuntimeSeconds?: number;
+    [key: string]: unknown;
+  };
   mlflow?: { runId?: string; [key: string]: unknown };
   [key: string]: unknown;
 };
@@ -97,6 +108,8 @@ export class StickerTrainingService extends BaseService {
 
     const args = [
       stickerTraining.trainingScriptPath,
+      '--config',
+      stickerTraining.trainingConfigPath,
       '--sample-window-size',
       String(stickerTraining.sampleWindowSize),
       '--run-id',
@@ -181,6 +194,7 @@ export class StickerTrainingService extends BaseService {
       finishedAt: new Date(),
       processExitCode: 0,
       metrics: { ...parsedResult.metrics, runtimeSeconds },
+      qualityGate: parsedResult.qualityGate ?? null,
     });
 
     await this.jobRepository.queue({
@@ -205,20 +219,34 @@ export class StickerTrainingService extends BaseService {
     }
 
     const metrics = (run.metrics ?? {}) as { dice?: number; runtimeSeconds?: number; [key: string]: unknown };
+    const qualityGate = (run.qualityGate ?? {}) as TrainingResultPayload['qualityGate'];
     const dice = typeof metrics.dice === 'number' ? metrics.dice : null;
+    const iou = typeof metrics.iou === 'number' ? metrics.iou : null;
     const runtimeSeconds = typeof metrics.runtimeSeconds === 'number' ? metrics.runtimeSeconds : null;
 
-    const passDice = dice !== null && dice >= stickerTraining.qualityGate.minDiceScore;
-    const passRuntime = runtimeSeconds !== null && runtimeSeconds <= stickerTraining.qualityGate.maxRuntimeSeconds;
-    const passed = passDice && passRuntime;
+    const passDice =
+      typeof qualityGate?.passDice === 'boolean'
+        ? qualityGate.passDice
+        : dice !== null && dice >= stickerTraining.qualityGate.minDiceScore;
+    const passIou =
+      typeof qualityGate?.passIou === 'boolean'
+        ? qualityGate.passIou
+        : iou !== null && iou >= stickerTraining.qualityGate.minIouScore;
+    const passRuntime =
+      typeof qualityGate?.passRuntime === 'boolean'
+        ? qualityGate.passRuntime
+        : runtimeSeconds !== null && runtimeSeconds <= stickerTraining.qualityGate.maxRuntimeSeconds;
+    const passed = typeof qualityGate?.passed === 'boolean' ? qualityGate.passed : passDice && passIou && passRuntime;
 
     await this.stickerTrainingRepository.updateRun(run.id, {
       status: passed ? 'completed' : 'rejected',
       qualityGate: {
         passed,
         passDice,
+        passIou,
         passRuntime,
         expectedMinDiceScore: stickerTraining.qualityGate.minDiceScore,
+        expectedMinIouScore: stickerTraining.qualityGate.minIouScore,
         expectedMaxRuntimeSeconds: stickerTraining.qualityGate.maxRuntimeSeconds,
       },
       failureReason: passed ? null : 'Quality gate failed',

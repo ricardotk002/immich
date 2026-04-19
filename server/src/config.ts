@@ -87,10 +87,12 @@ export type SystemConfig = {
       sampleWindowSize: number;
       pythonExecutable: string;
       trainingScriptPath: string;
+      trainingConfigPath: string;
       trainingWorkingDirectory: string;
       resultJsonPath: string;
       qualityGate: {
         minDiceScore: number;
+        minIouScore: number;
         maxRuntimeSeconds: number;
       };
     };
@@ -292,10 +294,12 @@ export const defaults = Object.freeze<SystemConfig>({
       sampleWindowSize: 5000,
       pythonExecutable: 'python3',
       trainingScriptPath: '',
+      trainingConfigPath: '',
       trainingWorkingDirectory: '',
       resultJsonPath: '',
       qualityGate: {
         minDiceScore: 0.8,
+        minIouScore: 0.7,
         maxRuntimeSeconds: 14_400,
       },
     },
