@@ -1543,6 +1543,8 @@
   "mirror_horizontal": "Horizontal",
   "mirror_vertical": "Vertical",
   "missing": "Missing",
+  "ml_training_opt_in": "Allow ML training",
+  "ml_training_opt_in_description": "Allow your images and metadata to be used for machine learning model training.",
   "mobile_app": "Mobile App",
   "mobile_app_download_onboarding_note": "Download the companion mobile app using the following options",
   "model": "Model",

@@ -17,6 +17,7 @@
   let shouldChangePassword = $state(true);
   let notify = $state(true);
   let isAdmin = $state(false);
+  let mlTrainingOptIn = $state(false);
 
   let quotaSize: string | undefined = $state();
   let isCreatingUser = $state(false);
@@ -51,6 +52,7 @@
       quotaSizeInBytes,
       notify,
       isAdmin,
+      mlTrainingOptIn,
     });
 
     if (user) {
@@ -103,6 +105,10 @@
 
     <Field label={$t('admin.admin_user')}>
       <Switch bind:checked={isAdmin} />
+    </Field>
+
+    <Field label={$t('ml_training_opt_in')}>
+      <Switch bind:checked={mlTrainingOptIn} />
     </Field>
   </Stack>
 </FormModal>

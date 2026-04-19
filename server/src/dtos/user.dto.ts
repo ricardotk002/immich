@@ -17,6 +17,7 @@ export const UserUpdateMeSchema = z
       .meta({ deprecated: true }),
     name: z.string().optional().describe('User name'),
     avatarColor: UserAvatarColorSchema.nullish(),
+    mlTrainingOptIn: z.boolean().optional().describe('Allow data to be used for machine learning training'),
   })
   .meta({ id: 'UserUpdateMeDto' });
 
@@ -89,6 +90,7 @@ export const UserAdminCreateSchema = z
     shouldChangePassword: z.boolean().optional().describe('Require password change on next login'),
     notify: z.boolean().optional().describe('Send notification email'),
     isAdmin: z.boolean().optional().describe('Grant admin privileges'),
+    mlTrainingOptIn: z.boolean().optional().describe('Allow data to be used for machine learning training'),
   })
   .meta({ id: 'UserAdminCreateDto' });
 
@@ -108,6 +110,7 @@ const UserAdminUpdateSchema = z
     shouldChangePassword: z.boolean().optional().describe('Require password change on next login'),
     quotaSizeInBytes: z.int().min(0).nullish().describe('Storage quota in bytes'),
     isAdmin: z.boolean().optional().describe('Grant admin privileges'),
+    mlTrainingOptIn: z.boolean().optional().describe('Allow data to be used for machine learning training'),
   })
   .meta({ id: 'UserAdminUpdateDto' });
 
@@ -131,6 +134,7 @@ const UserAdminResponseSchema = UserResponseSchema.extend({
   oauthId: z.string().describe('OAuth ID'),
   quotaSizeInBytes: z.int().min(0).nullable().describe('Storage quota in bytes'),
   quotaUsageInBytes: z.int().min(0).nullable().describe('Storage usage in bytes'),
+  mlTrainingOptIn: z.boolean().describe('Allow data to be used for machine learning training'),
   status: UserStatusSchema,
   license: UserLicenseSchema.nullable(),
 }).meta({ id: 'UserAdminResponseDto' });
@@ -154,6 +158,7 @@ export function mapUserAdmin(entity: UserAdmin): UserAdminResponseDto {
     oauthId: entity.oauthId,
     quotaSizeInBytes: entity.quotaSizeInBytes,
     quotaUsageInBytes: entity.quotaUsageInBytes,
+    mlTrainingOptIn: entity.mlTrainingOptIn,
     status: entity.status,
     license: license ? { ...license, activatedAt: new Date(license.activatedAt) } : null,
   };

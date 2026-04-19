@@ -197,6 +197,8 @@ export type UserAdminResponseDto = {
     id: string;
     /** Is admin user */
     isAdmin: boolean;
+    /** Allow data to be used for machine learning training */
+    mlTrainingOptIn: boolean;
     license: (UserLicense) | null;
     /** User name */
     name: string;
@@ -224,6 +226,8 @@ export type UserAdminCreateDto = {
     email: string;
     /** Grant admin privileges */
     isAdmin?: boolean;
+    /** Allow data to be used for machine learning training */
+    mlTrainingOptIn?: boolean;
     /** User name */
     name: string;
     /** Send notification email */
@@ -249,6 +253,8 @@ export type UserAdminUpdateDto = {
     email?: string;
     /** Grant admin privileges */
     isAdmin?: boolean;
+    /** Allow data to be used for machine learning training */
+    mlTrainingOptIn?: boolean;
     /** User name */
     name?: string;
     /** User password */
@@ -1008,6 +1014,8 @@ export type AssetOcrResponseDto = {
 export type SignUpDto = {
     /** User email */
     email: string;
+    /** Allow data to be used for machine learning training */
+    mlTrainingOptIn?: boolean;
     /** User name */
     name: string;
     /** User password */
@@ -2718,6 +2726,8 @@ export type UserUpdateMeDto = {
     avatarColor?: (UserAvatarColor) | null;
     /** User email */
     email?: string;
+    /** Allow data to be used for machine learning training */
+    mlTrainingOptIn?: boolean;
     /** User name */
     name?: string;
     /** User password (deprecated, use change password endpoint) */

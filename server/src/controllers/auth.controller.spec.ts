@@ -66,6 +66,15 @@ describe(AuthController.name, () => {
         .send({ name: 'admin', password: 'password', email: 'admin@local' });
       expect(status).toEqual(201);
     });
+
+    it('should accept mlTrainingOptIn', async () => {
+      const { status } = await request(ctx.getHttpServer())
+        .post('/auth/admin-sign-up')
+        .send({ name: 'admin', email, password, mlTrainingOptIn: true });
+
+      expect(status).toEqual(201);
+      expect(service.adminSignUp).toHaveBeenCalledWith(expect.objectContaining({ mlTrainingOptIn: true }));
+    });
   });
 
   describe('POST /auth/login', () => {

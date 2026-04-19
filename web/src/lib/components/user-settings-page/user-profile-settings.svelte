@@ -2,7 +2,7 @@
   import { authManager } from '$lib/managers/auth-manager.svelte';
   import { handleError } from '$lib/utils/handle-error';
   import { updateMyUser } from '@immich/sdk';
-  import { Button, Field, Input, toastManager } from '@immich/ui';
+  import { Button, Field, Input, Switch, Text, toastManager } from '@immich/ui';
   import { cloneDeep } from 'lodash-es';
   import { t } from 'svelte-i18n';
   import { createBubbler, preventDefault } from 'svelte/legacy';
@@ -17,6 +17,7 @@
         userUpdateMeDto: {
           email: editedUser.email,
           name: editedUser.name,
+          mlTrainingOptIn: editedUser.mlTrainingOptIn,
         },
       });
 
@@ -44,6 +45,11 @@
 
         <Field label={$t('name')} required>
           <Input bind:value={editedUser.name} />
+        </Field>
+
+        <Field label={$t('ml_training_opt_in')}>
+          <Switch bind:checked={editedUser.mlTrainingOptIn} />
+          <Text size="small" color="muted" class="mt-1">{$t('ml_training_opt_in_description')}</Text>
         </Field>
 
         <Field label={$t('storage_label')} disabled>

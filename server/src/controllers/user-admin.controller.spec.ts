@@ -64,6 +64,16 @@ describe(UserAdminController.name, () => {
       expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ avatarColor: null }));
     });
 
+    it('should allow mlTrainingOptIn', async () => {
+      await request(ctx.getHttpServer()).post(`/admin/users`).send({
+        name: 'Test user',
+        email: 'test@immich.cloud',
+        password: 'password',
+        mlTrainingOptIn: true,
+      });
+      expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ mlTrainingOptIn: true }));
+    });
+
     it(`should `, async () => {
       const dto: UserAdminCreateDto = {
         email: 'user@immich.app',
@@ -141,6 +151,12 @@ describe(UserAdminController.name, () => {
       const id = factory.uuid();
       await request(ctx.getHttpServer()).put(`/admin/users/${id}`).send({ avatarColor: null });
       expect(service.update).toHaveBeenCalledWith(undefined, id, expect.objectContaining({ avatarColor: null }));
+    });
+
+    it('should allow mlTrainingOptIn', async () => {
+      const id = factory.uuid();
+      await request(ctx.getHttpServer()).put(`/admin/users/${id}`).send({ mlTrainingOptIn: true });
+      expect(service.update).toHaveBeenCalledWith(undefined, id, expect.objectContaining({ mlTrainingOptIn: true }));
     });
   });
 });

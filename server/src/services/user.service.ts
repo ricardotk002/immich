@@ -55,6 +55,7 @@ export class UserService extends BaseService {
       email: dto.email,
       name: dto.name,
       avatarColor: dto.avatarColor,
+      mlTrainingOptIn: dto.mlTrainingOptIn,
     };
 
     if (dto.password) {

@@ -49,6 +49,9 @@ export class UserTable {
   @Column({ type: 'boolean', default: true })
   shouldChangePassword!: Generated<boolean>;
 
+  @Column({ type: 'boolean', default: false })
+  mlTrainingOptIn!: Generated<boolean>;
+
   @Column({ default: null })
   avatarColor!: UserAvatarColor | null;
 

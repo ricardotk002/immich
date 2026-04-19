@@ -94,6 +94,16 @@ describe(UserService.name, () => {
     });
   });
 
+  describe('updateMe', () => {
+    it('should update mlTrainingOptIn', async () => {
+      mocks.user.update.mockResolvedValue({ ...userStub.admin, mlTrainingOptIn: true });
+
+      await sut.updateMe(authStub.admin, { mlTrainingOptIn: true });
+
+      expect(mocks.user.update).toHaveBeenCalledWith(authStub.admin.user.id, expect.objectContaining({ mlTrainingOptIn: true }));
+    });
+  });
+
   describe('createProfileImage', () => {
     it('should throw an error if the user does not exist', async () => {
       const file = { path: '/profile/path' } as Express.Multer.File;
