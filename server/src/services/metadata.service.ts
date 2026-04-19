@@ -4,8 +4,9 @@ import { Insertable } from 'kysely';
 import _ from 'lodash';
 import { DateTime, Duration } from 'luxon';
 import { Stats } from 'node:fs';
-import { constants } from 'node:fs/promises';
+import { constants, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, parse } from 'node:path';
+import os from 'node:os';
 import { JOBS_ASSET_PAGINATION_SIZE } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { Asset, AssetFile } from 'src/database';
@@ -523,13 +524,30 @@ export class MetadataService extends BaseService {
     return { width, height };
   }
 
+  // For object storage backends, exiftool can't access MinIO keys directly.
+  // This helper downloads the file to a temp path, calls fn with it, then cleans up.
+  private async withLocalFile<T>(storagePath: string, fn: (localPath: string) => Promise<T>): Promise<T> {
+    if (this.configRepository.getEnv().storage.backend !== 'minio') {
+      return fn(storagePath);
+    }
+    const tmpDir = await mkdtemp(join(os.tmpdir(), 'immich-exif-'));
+    const ext = storagePath.includes('.') ? storagePath.slice(storagePath.lastIndexOf('.')) : '';
+    const tmpPath = join(tmpDir, `file${ext}`);
+    try {
+      await writeFile(tmpPath, await this.storageRepository.readFile(storagePath));
+      return await fn(tmpPath);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  }
+
   private async getExifTags(asset: { originalPath: string; files: AssetFile[]; type: AssetType }): Promise<ImmichTags> {
     const { sidecarFile } = getAssetFiles(asset.files);
 
     const [mediaTags, sidecarTags, videoTags] = await Promise.all([
-      this.metadataRepository.readTags(asset.originalPath),
-      sidecarFile ? this.metadataRepository.readTags(sidecarFile.path) : null,
-      asset.type === AssetType.Video ? this.getVideoTags(asset.originalPath) : null,
+      this.withLocalFile(asset.originalPath, (p) => this.metadataRepository.readTags(p)),
+      sidecarFile ? this.withLocalFile(sidecarFile.path, (p) => this.metadataRepository.readTags(p)) : null,
+      asset.type === AssetType.Video ? this.withLocalFile(asset.originalPath, (p) => this.getVideoTags(p)) : null,
     ]);
 
     // prefer dates from sidecar tags
@@ -645,11 +663,15 @@ export class MetadataService extends BaseService {
       // Samsung MotionPhoto video extraction
       //     HEIC-encoded
       if (hasMotionPhotoVideo) {
-        video = await this.metadataRepository.extractBinaryTag(asset.originalPath, 'MotionPhotoVideo');
+        video = await this.withLocalFile(asset.originalPath, (p) =>
+          this.metadataRepository.extractBinaryTag(p, 'MotionPhotoVideo'),
+        );
       }
       //     JPEG-encoded; HEIC also contains these tags, so this conditional must come second
       else if (hasEmbeddedVideoFile) {
-        video = await this.metadataRepository.extractBinaryTag(asset.originalPath, 'EmbeddedVideoFile');
+        video = await this.withLocalFile(asset.originalPath, (p) =>
+          this.metadataRepository.extractBinaryTag(p, 'EmbeddedVideoFile'),
+        );
       }
       // Default video extraction
       else {

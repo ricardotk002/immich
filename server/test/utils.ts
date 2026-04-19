@@ -280,6 +280,7 @@ type Constructor<Type, Args extends Array<any>> = {
 export const getMocks = () => {
   const loggerMock = { setContext: () => {} };
   const configMock = { getEnv: () => ({}) };
+  const storageMock = newStorageRepositoryMock();
 
   // eslint-disable-next-line no-sparse-arrays
   const databaseMock = automock(DatabaseRepository, { args: [, loggerMock], strict: false });
@@ -313,7 +314,7 @@ export const getMocks = () => {
     job: newJobRepositoryMock(),
     apiKey: automock(ApiKeyRepository),
     library: automock(LibraryRepository, { strict: false }),
-    machineLearning: automock(MachineLearningRepository, { args: [loggerMock], strict: false }),
+    machineLearning: automock(MachineLearningRepository, { args: [loggerMock, storageMock], strict: false }),
     map: automock(MapRepository, { args: [undefined, undefined, { setContext: () => {} }] }),
     media: newMediaRepositoryMock(),
     memory: automock(MemoryRepository),
@@ -333,7 +334,7 @@ export const getMocks = () => {
     sharedLink: automock(SharedLinkRepository),
     sharedLinkAsset: automock(SharedLinkAssetRepository),
     stack: automock(StackRepository),
-    storage: newStorageRepositoryMock(),
+    storage: storageMock,
     sync: automock(SyncRepository),
     syncCheckpoint: automock(SyncCheckpointRepository),
     systemMetadata: newSystemMetadataRepositoryMock(),
