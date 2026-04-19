@@ -5,7 +5,7 @@ import { basename, extname } from 'node:path';
 import { promisify } from 'node:util';
 import { CacheControl } from 'src/enum';
 import { LoggingRepository } from 'src/repositories/logging.repository';
-import { ImmichReadStream } from 'src/repositories/storage.repository';
+import { ImmichReadStream, IStorageRepository } from 'src/repositories/storage.repository';
 import { isConnectionAborted } from 'src/utils/misc';
 
 export function getFileNameWithoutExtension(path: string): string {
@@ -45,6 +45,7 @@ export const sendFile = async (
   next: NextFunction,
   handler: () => Promise<ImmichFileResponse> | ImmichFileResponse,
   logger: LoggingRepository,
+  storageRepository?: IStorageRepository,
 ): Promise<void> => {
   // promisified version of 'res.sendFile' for cleaner async handling
   const _sendFile = (path: string, options: SendFileOptions) =>
@@ -61,6 +62,20 @@ export const sendFile = async (
     res.header('Content-Type', file.contentType);
     if (file.fileName) {
       res.header('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
+    }
+
+    if (storageRepository) {
+      const { stream, length } = await storageRepository.createReadStream(file.path, file.contentType);
+      if (length !== undefined) {
+        res.header('Content-Length', String(length));
+      }
+      await new Promise<void>((resolve, reject) => {
+        stream.on('error', reject);
+        res.on('finish', resolve);
+        res.on('error', reject);
+        stream.pipe(res);
+      });
+      return;
     }
 
     await access(file.path, constants.R_OK);

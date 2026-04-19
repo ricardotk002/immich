@@ -1,6 +1,8 @@
 import { PersonController } from 'src/controllers/person.controller';
 import { LoggingRepository } from 'src/repositories/logging.repository';
+import { StorageRepository } from 'src/repositories/storage.repository';
 import { PersonService } from 'src/services/person.service';
+import { newStorageRepositoryMock } from 'test/repositories/storage.repository.mock';
 import request from 'supertest';
 import { errorDto } from 'test/medium/responses';
 import { factory } from 'test/small.factory';
@@ -14,6 +16,7 @@ describe(PersonController.name, () => {
     ctx = await controllerSetup(PersonController, [
       { provide: PersonService, useValue: service },
       { provide: LoggingRepository, useValue: automock(LoggingRepository, { strict: false }) },
+      { provide: StorageRepository, useValue: newStorageRepositoryMock() },
     ]);
     return () => ctx.close();
   });

@@ -1,15 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import archiver from 'archiver';
-import chokidar, { ChokidarOptions } from 'chokidar';
-import { escapePath, glob, globStream } from 'fast-glob';
-import { constants, createReadStream, createWriteStream, existsSync, mkdirSync, ReadOptionsWithBuffer } from 'node:fs';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import { ChokidarOptions } from 'chokidar';
+import { Stats } from 'node:fs';
+import { ReadOptionsWithBuffer } from 'node:fs';
 import { PassThrough, Readable, Writable } from 'node:stream';
-import { createGunzip, createGzip } from 'node:zlib';
 import { CrawlOptionsDto, WalkOptionsDto } from 'src/dtos/library.dto';
+import { ConfigRepository } from 'src/repositories/config.repository';
 import { LoggingRepository } from 'src/repositories/logging.repository';
-import { mimeTypes } from 'src/utils/mime-types';
+import { DiskStorageRepository } from 'src/repositories/storage-disk.repository';
+import { MinioStorageRepository } from 'src/repositories/storage-minio.repository';
 
 export interface WatchEvents {
   onReady(): void;
@@ -36,231 +34,156 @@ export interface DiskUsage {
   total: number;
 }
 
+export interface IStorageRepository {
+  realpath(filepath: string): Promise<string>;
+  readdir(folder: string): Promise<string[]>;
+  copyFile(source: string, target: string): Promise<void>;
+  stat(filepath: string): Promise<Stats>;
+  createFile(filepath: string, buffer: Buffer): Promise<void>;
+  createWriteStream(filepath: string): Writable;
+  createOrOverwriteFile(filepath: string, buffer: Buffer): Promise<void>;
+  overwriteFile(filepath: string, buffer: Buffer): Promise<void>;
+  rename(source: string, target: string): Promise<void>;
+  utimes(filepath: string, atime: Date, mtime: Date): Promise<void>;
+  createZipStream(): ImmichZipStream;
+  createGzip(): PassThrough;
+  createGunzip(): PassThrough;
+  createPlainReadStream(filepath: string): Readable;
+  createReadStream(filepath: string, mimeType?: string | null): Promise<ImmichReadStream>;
+  readFile(filepath: string, options?: ReadOptionsWithBuffer<Buffer>): Promise<Buffer>;
+  readTextFile(filepath: string): Promise<string>;
+  checkFileExists(filepath: string, mode?: number): Promise<boolean>;
+  unlink(file: string): Promise<void>;
+  unlinkDir(folder: string, options: { recursive?: boolean; force?: boolean }): Promise<void>;
+  removeEmptyDirs(directory: string, self?: boolean): Promise<void>;
+  mkdirSync(filepath: string): void;
+  existsSync(filepath: string): boolean;
+  checkDiskUsage(folder: string): Promise<DiskUsage>;
+  crawl(crawlOptions: CrawlOptionsDto): Promise<string[]>;
+  walk(walkOptions: WalkOptionsDto): AsyncGenerator<string[]>;
+  watch(paths: string[], options: ChokidarOptions, events: Partial<WatchEvents>): () => Promise<void>;
+}
+
 @Injectable()
-export class StorageRepository {
-  constructor(private logger: LoggingRepository) {
-    this.logger.setContext(StorageRepository.name);
+export class StorageRepository implements IStorageRepository {
+  private readonly backend: IStorageRepository;
+
+  constructor(
+    private logger: LoggingRepository,
+    configRepository: ConfigRepository,
+  ) {
+    const env = configRepository.getEnv();
+    this.backend =
+      env.storage.backend === 'minio'
+        ? new MinioStorageRepository(env.storage.minio, logger)
+        : new DiskStorageRepository(logger);
   }
 
   realpath(filepath: string) {
-    return fs.realpath(filepath);
+    return this.backend.realpath(filepath);
   }
 
-  readdir(folder: string): Promise<string[]> {
-    return fs.readdir(folder);
+  readdir(folder: string) {
+    return this.backend.readdir(folder);
   }
 
   copyFile(source: string, target: string) {
-    return fs.copyFile(source, target);
+    return this.backend.copyFile(source, target);
   }
 
   stat(filepath: string) {
-    return fs.stat(filepath);
+    return this.backend.stat(filepath);
   }
 
   createFile(filepath: string, buffer: Buffer) {
-    return fs.writeFile(filepath, buffer, { flag: 'wx' });
+    return this.backend.createFile(filepath, buffer);
   }
 
-  createWriteStream(filepath: string): Writable {
-    return createWriteStream(filepath, { flags: 'w', flush: true });
+  createWriteStream(filepath: string) {
+    return this.backend.createWriteStream(filepath);
   }
 
   createOrOverwriteFile(filepath: string, buffer: Buffer) {
-    return fs.writeFile(filepath, buffer, { flag: 'w' });
+    return this.backend.createOrOverwriteFile(filepath, buffer);
   }
 
   overwriteFile(filepath: string, buffer: Buffer) {
-    return fs.writeFile(filepath, buffer, { flag: 'r+' });
+    return this.backend.overwriteFile(filepath, buffer);
   }
 
   rename(source: string, target: string) {
-    return fs.rename(source, target);
+    return this.backend.rename(source, target);
   }
 
   utimes(filepath: string, atime: Date, mtime: Date) {
-    return fs.utimes(filepath, atime, mtime);
+    return this.backend.utimes(filepath, atime, mtime);
   }
 
-  createZipStream(): ImmichZipStream {
-    const archive = archiver('zip', { store: true });
-
-    const addFile = (input: string, filename: string) => {
-      archive.file(input, { name: filename, mode: 0o644 });
-    };
-
-    const finalize = () => archive.finalize();
-
-    return { stream: archive, addFile, finalize };
+  createZipStream() {
+    return this.backend.createZipStream();
   }
 
-  createGzip(): PassThrough {
-    return createGzip();
+  createGzip() {
+    return this.backend.createGzip();
   }
 
-  createGunzip(): PassThrough {
-    return createGunzip();
+  createGunzip() {
+    return this.backend.createGunzip();
   }
 
-  createPlainReadStream(filepath: string): Readable {
-    return createReadStream(filepath);
+  createPlainReadStream(filepath: string) {
+    return this.backend.createPlainReadStream(filepath);
   }
 
-  async createReadStream(filepath: string, mimeType?: string | null): Promise<ImmichReadStream> {
-    const { size } = await fs.stat(filepath);
-    await fs.access(filepath, constants.R_OK);
-    return {
-      stream: createReadStream(filepath),
-      length: size,
-      type: mimeType || undefined,
-    };
+  createReadStream(filepath: string, mimeType?: string | null) {
+    return this.backend.createReadStream(filepath, mimeType);
   }
 
-  async readFile(filepath: string, options?: ReadOptionsWithBuffer<Buffer>): Promise<Buffer> {
-    const file = await fs.open(filepath);
-    try {
-      const { buffer } = await file.read(options);
-      return buffer as Buffer;
-    } finally {
-      await file.close();
-    }
+  readFile(filepath: string, options?: ReadOptionsWithBuffer<Buffer>) {
+    return this.backend.readFile(filepath, options);
   }
 
-  async readTextFile(filepath: string): Promise<string> {
-    return fs.readFile(filepath, 'utf8');
+  readTextFile(filepath: string) {
+    return this.backend.readTextFile(filepath);
   }
 
-  async checkFileExists(filepath: string, mode = constants.F_OK): Promise<boolean> {
-    try {
-      await fs.access(filepath, mode);
-      return true;
-    } catch {
-      return false;
-    }
+  checkFileExists(filepath: string, mode?: number) {
+    return this.backend.checkFileExists(filepath, mode);
   }
 
-  async unlink(file: string) {
-    try {
-      await fs.unlink(file);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-        this.logger.warn(`File ${file} does not exist.`);
-      } else {
-        throw error;
-      }
-    }
+  unlink(file: string) {
+    return this.backend.unlink(file);
   }
 
-  async unlinkDir(folder: string, options: { recursive?: boolean; force?: boolean }) {
-    await fs.rm(folder, { ...options, maxRetries: 5, retryDelay: 100 });
+  unlinkDir(folder: string, options: { recursive?: boolean; force?: boolean }) {
+    return this.backend.unlinkDir(folder, options);
   }
 
-  async removeEmptyDirs(directory: string, self: boolean = false) {
-    // lstat does not follow symlinks (in contrast to stat)
-    const stats = await fs.lstat(directory);
-    if (!stats.isDirectory()) {
-      return;
-    }
-
-    const files = await fs.readdir(directory);
-    await Promise.all(files.map((file) => this.removeEmptyDirs(path.join(directory, file), true)));
-
-    if (self) {
-      const updated = await fs.readdir(directory);
-      if (updated.length === 0) {
-        try {
-          await fs.rmdir(directory);
-        } catch (error: Error | any) {
-          if (error.code !== 'ENOTEMPTY') {
-            this.logger.warn(`Attempted to remove directory, but failed: ${error}`);
-          }
-        }
-      }
-    }
+  removeEmptyDirs(directory: string, self?: boolean) {
+    return this.backend.removeEmptyDirs(directory, self);
   }
 
-  mkdirSync(filepath: string): void {
-    if (!existsSync(filepath)) {
-      mkdirSync(filepath, { recursive: true });
-    }
+  mkdirSync(filepath: string) {
+    return this.backend.mkdirSync(filepath);
   }
 
   existsSync(filepath: string) {
-    return existsSync(filepath);
+    return this.backend.existsSync(filepath);
   }
 
-  async checkDiskUsage(folder: string): Promise<DiskUsage> {
-    const stats = await fs.statfs(folder);
-    return {
-      available: stats.bavail * stats.bsize,
-      free: stats.bfree * stats.bsize,
-      total: stats.blocks * stats.bsize,
-    };
+  checkDiskUsage(folder: string) {
+    return this.backend.checkDiskUsage(folder);
   }
 
-  crawl(crawlOptions: CrawlOptionsDto): Promise<string[]> {
-    const { pathsToCrawl, exclusionPatterns, includeHidden } = crawlOptions;
-    if (pathsToCrawl.length === 0) {
-      return Promise.resolve([]);
-    }
-
-    const globbedPaths = pathsToCrawl.map((path) => this.asGlob(path));
-
-    return glob(globbedPaths, {
-      absolute: true,
-      caseSensitiveMatch: false,
-      onlyFiles: true,
-      dot: includeHidden,
-      ignore: exclusionPatterns,
-    });
+  crawl(crawlOptions: CrawlOptionsDto) {
+    return this.backend.crawl(crawlOptions);
   }
 
-  async *walk(walkOptions: WalkOptionsDto): AsyncGenerator<string[]> {
-    const { pathsToCrawl, exclusionPatterns, includeHidden } = walkOptions;
-    if (pathsToCrawl.length === 0) {
-      async function* emptyGenerator() {}
-      return emptyGenerator();
-    }
-
-    const globbedPaths = pathsToCrawl.map((path) => this.asGlob(path));
-
-    const stream = globStream(globbedPaths, {
-      absolute: true,
-      caseSensitiveMatch: false,
-      onlyFiles: true,
-      dot: includeHidden,
-      ignore: exclusionPatterns,
-    });
-
-    let batch: string[] = [];
-    for await (const value of stream) {
-      batch.push(value.toString());
-      if (batch.length === walkOptions.take) {
-        yield batch;
-        batch = [];
-      }
-    }
-
-    if (batch.length > 0) {
-      yield batch;
-    }
+  walk(walkOptions: WalkOptionsDto) {
+    return this.backend.walk(walkOptions);
   }
 
   watch(paths: string[], options: ChokidarOptions, events: Partial<WatchEvents>) {
-    const watcher = chokidar.watch(paths, options);
-
-    watcher.on('ready', () => events.onReady?.());
-    watcher.on('add', (path) => events.onAdd?.(path));
-    watcher.on('change', (path) => events.onChange?.(path));
-    watcher.on('unlink', (path) => events.onUnlink?.(path));
-    watcher.on('error', (error) => events.onError?.(error as Error));
-
-    return () => watcher.close();
-  }
-
-  private asGlob(pathToCrawl: string): string {
-    const escapedPath = escapePath(pathToCrawl).replaceAll('"', '["]').replaceAll("'", "[']").replaceAll('`', '[`]');
-    const extensions = `*{${mimeTypes.getSupportedFileExtensions().join(',')}}`;
-    return `${escapedPath}/**/${extensions}`;
+    return this.backend.watch(paths, options, events);
   }
 }

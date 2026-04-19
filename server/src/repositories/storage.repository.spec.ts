@@ -1,7 +1,7 @@
 import mockfs from 'mock-fs';
 import { CrawlOptionsDto } from 'src/dtos/library.dto';
 import { LoggingRepository } from 'src/repositories/logging.repository';
-import { StorageRepository } from 'src/repositories/storage.repository';
+import { DiskStorageRepository } from 'src/repositories/storage-disk.repository';
 import { automock } from 'test/utils';
 
 interface Test {
@@ -179,12 +179,12 @@ const tests: Test[] = [
   },
 ];
 
-describe(StorageRepository.name, () => {
-  let sut: StorageRepository;
+describe(DiskStorageRepository.name, () => {
+  let sut: DiskStorageRepository;
 
   beforeEach(() => {
     // eslint-disable-next-line no-sparse-arrays
-    sut = new StorageRepository(automock(LoggingRepository, { args: [, { getEnv: () => ({}) }], strict: false }));
+    sut = new DiskStorageRepository(automock(LoggingRepository, { args: [, { getEnv: () => ({}) }], strict: false }));
   });
 
   afterEach(() => {

@@ -1,6 +1,8 @@
 import { UserController } from 'src/controllers/user.controller';
 import { LoggingRepository } from 'src/repositories/logging.repository';
+import { StorageRepository } from 'src/repositories/storage.repository';
 import { UserService } from 'src/services/user.service';
+import { newStorageRepositoryMock } from 'test/repositories/storage.repository.mock';
 import request from 'supertest';
 import { errorDto } from 'test/medium/responses';
 import { factory } from 'test/small.factory';
@@ -14,6 +16,7 @@ describe(UserController.name, () => {
     ctx = await controllerSetup(UserController, [
       { provide: LoggingRepository, useValue: automock(LoggingRepository, { strict: false }) },
       { provide: UserService, useValue: service },
+      { provide: StorageRepository, useValue: newStorageRepositoryMock() },
     ]);
     return () => ctx.close();
   });

@@ -447,7 +447,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -461,7 +460,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
 
       expect(mocks.media.generateThumbhash).toHaveBeenCalledOnce();
@@ -690,8 +688,7 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           raw: rawInfo,
           edits: [],
-        },
-        previewPath,
+        }
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -704,8 +701,7 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           raw: rawInfo,
           edits: [],
-        },
-        thumbnailPath,
+        }
       );
     });
 
@@ -740,8 +736,7 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           raw: rawInfo,
           edits: [],
-        },
-        previewPath,
+        }
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -754,8 +749,7 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           raw: rawInfo,
           edits: [],
-        },
-        thumbnailPath,
+        }
       );
     });
 
@@ -774,7 +768,6 @@ describe(MediaService.name, () => {
           format: ImageFormat.Jpeg,
           progressive: true,
         }),
-        expect.stringContaining('preview.jpeg'),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -782,7 +775,6 @@ describe(MediaService.name, () => {
           format: ImageFormat.Webp,
           progressive: false,
         }),
-        expect.stringContaining('thumbnail.webp'),
       );
       expect(mocks.asset.upsertFiles).toHaveBeenCalledWith([
         expect.objectContaining({
@@ -813,7 +805,6 @@ describe(MediaService.name, () => {
           format: ImageFormat.Jpeg,
           progressive: false,
         }),
-        expect.stringContaining('preview.jpeg'),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -821,7 +812,6 @@ describe(MediaService.name, () => {
           format: ImageFormat.Jpeg,
           progressive: true,
         }),
-        expect.stringContaining('thumbnail.jpeg'),
       );
       expect(mocks.asset.upsertFiles).toHaveBeenCalledWith([
         expect.objectContaining({
@@ -995,12 +985,10 @@ describe(MediaService.name, () => {
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
         expect.objectContaining({ processInvalidImages: false }),
-        expect.any(String),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
         expect.objectContaining({ processInvalidImages: false }),
-        expect.any(String),
       );
 
       expect(mocks.media.generateThumbhash).toHaveBeenCalledOnce();
@@ -1046,7 +1034,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
     });
 
@@ -1082,7 +1069,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         fullsizeBuffer,
@@ -1096,7 +1082,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
     });
 
@@ -1130,7 +1115,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         rawBuffer,
@@ -1144,7 +1128,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
     });
 
@@ -1182,7 +1165,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
     });
 
@@ -1203,11 +1185,6 @@ describe(MediaService.name, () => {
       });
 
       expect(mocks.media.generateThumbnail).toHaveBeenCalledTimes(2);
-      expect(mocks.media.generateThumbnail).not.toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.stringContaining('fullsize.jpeg'),
-      );
     });
 
     it('should always generate full-size preview from non-web-friendly panoramas', async () => {
@@ -1247,7 +1224,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
 
       expect(mocks.media.copyTagGroup).toHaveBeenCalledTimes(2);
@@ -1290,7 +1266,6 @@ describe(MediaService.name, () => {
           raw: rawInfo,
           edits: [],
         },
-        expect.any(String),
       );
     });
 
@@ -1318,7 +1293,6 @@ describe(MediaService.name, () => {
           format: ImageFormat.Jpeg,
           progressive: true,
         }),
-        expect.stringContaining('fullsize.jpeg'),
       );
     });
   });
@@ -1396,7 +1370,6 @@ describe(MediaService.name, () => {
             }),
           ],
         }),
-        expect.any(String),
       );
     });
 
@@ -1434,21 +1407,9 @@ describe(MediaService.name, () => {
       await sut.handleAssetEditThumbnailGeneration({ id: asset.id });
 
       expect(mocks.media.generateThumbnail).toHaveBeenCalledTimes(3);
-      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
-        rawBuffer,
-        expect.anything(),
-        expect.stringContaining('preview_edited.jpeg'),
-      );
-      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
-        rawBuffer,
-        expect.anything(),
-        expect.stringContaining('thumbnail_edited.webp'),
-      );
-      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
-        rawBuffer,
-        expect.anything(),
-        expect.stringContaining('fullsize_edited.jpeg'),
-      );
+      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(rawBuffer, expect.anything());
+      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(rawBuffer, expect.anything());
+      expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(rawBuffer, expect.anything());
     });
 
     it('should generate the original thumbhash if no edits exist', async () => {
@@ -1505,7 +1466,7 @@ describe(MediaService.name, () => {
       const person = PersonFactory.create();
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.newThumbnailMiddle);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 1000, height: 1000 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1541,7 +1502,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
       expect(mocks.person.update).toHaveBeenCalledWith({ id: person.id, thumbnailPath: expect.any(String) });
     });
@@ -1550,7 +1510,7 @@ describe(MediaService.name, () => {
       const person = PersonFactory.create();
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.videoThumbnail);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 1000, height: 1000 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1586,7 +1546,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
       expect(mocks.person.update).toHaveBeenCalledWith({ id: person.id, thumbnailPath: expect.any(String) });
     });
@@ -1595,7 +1554,7 @@ describe(MediaService.name, () => {
       const person = PersonFactory.create();
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.newThumbnailStart);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 2160, height: 3840 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1629,7 +1588,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
     });
 
@@ -1638,7 +1596,7 @@ describe(MediaService.name, () => {
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.newThumbnailEnd);
       mocks.person.update.mockResolvedValue(person);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 1000, height: 1000 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1672,7 +1630,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
     });
 
@@ -1681,7 +1638,7 @@ describe(MediaService.name, () => {
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.negativeCoordinate);
       mocks.person.update.mockResolvedValue(person);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 4624, height: 3080 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1715,7 +1672,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
     });
 
@@ -1724,7 +1680,7 @@ describe(MediaService.name, () => {
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.overflowingCoordinate);
       mocks.person.update.mockResolvedValue(person);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 4624, height: 3080 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1758,7 +1714,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
     });
 
@@ -1768,7 +1723,7 @@ describe(MediaService.name, () => {
       mocks.systemMetadata.get.mockResolvedValue({ image: { extractEmbedded: true } });
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.rawEmbeddedThumbnail);
       mocks.person.update.mockResolvedValue(person);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const extracted = Buffer.from('');
       const data = Buffer.from('');
       const info = { width: 2160, height: 3840 } as OutputInfo;
@@ -1806,7 +1761,6 @@ describe(MediaService.name, () => {
           processInvalidImages: false,
           size: 250,
         },
-        expect.any(String),
       );
     });
 
@@ -1814,7 +1768,7 @@ describe(MediaService.name, () => {
       const person = PersonFactory.create();
 
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.newThumbnailMiddle);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 2160, height: 3840 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1830,7 +1784,7 @@ describe(MediaService.name, () => {
 
       mocks.systemMetadata.get.mockResolvedValue({ image: { extractEmbedded: true } });
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.rawEmbeddedThumbnail);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const data = Buffer.from('');
       const info = { width: 2160, height: 3840 } as OutputInfo;
       mocks.media.decodeImage.mockResolvedValue({ data, info });
@@ -1851,7 +1805,7 @@ describe(MediaService.name, () => {
 
       mocks.systemMetadata.get.mockResolvedValue({ image: { extractEmbedded: true } });
       mocks.person.getDataForThumbnailGenerationJob.mockResolvedValue(personThumbnailStub.rawEmbeddedThumbnail);
-      mocks.media.generateThumbnail.mockResolvedValue();
+      mocks.media.generateThumbnail.mockResolvedValue(Buffer.from(""));
       const extracted = Buffer.from('');
       const data = Buffer.from('');
       const info = { width: 1000, height: 1000 } as OutputInfo;

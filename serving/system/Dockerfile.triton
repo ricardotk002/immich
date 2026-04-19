@@ -1,0 +1,10 @@
+# serving/system/Dockerfile.triton
+FROM nvcr.io/nvidia/tritonserver:24.05-py3
+
+RUN pip install --no-cache-dir \
+    opencv-python-headless \
+    Pillow \
+    numpy \
+    onnxruntime-gpu==1.18.1
+
+CMD ["tritonserver", "--model-repository=/models"]

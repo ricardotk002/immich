@@ -1,5 +1,6 @@
 import { Plugin as ExtismPlugin, newPlugin } from '@extism/extism';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { Asset, WorkflowAction, WorkflowFilter } from 'src/database';
 import { OnEvent, OnJob } from 'src/decorators';
@@ -134,7 +135,7 @@ export class PluginService extends BaseService {
   }
 
   private async readAndValidateManifest(manifestPath: string): Promise<PluginManifestDto> {
-    const content = await this.storageRepository.readTextFile(manifestPath);
+    const content = await fs.readFile(manifestPath, 'utf8');
     const manifestData = JSON.parse(content);
     return PluginManifestSchema.parse(manifestData);
   }
