@@ -65,6 +65,7 @@ const LogoutResponseSchema = z
 
 const SignUpSchema = LoginCredentialSchema.extend({
   name: z.string().describe('User name').meta({ example: 'Admin' }),
+  mlTrainingOptIn: z.boolean().optional().describe('Allow data to be used for machine learning training'),
 }).meta({ id: 'SignUpDto' });
 
 const ChangePasswordSchema = z

@@ -180,6 +180,7 @@ export class AuthService extends BaseService {
       name: dto.name,
       password: dto.password,
       storageLabel: 'admin',
+      mlTrainingOptIn: dto.mlTrainingOptIn,
     });
 
     return mapUserAdmin(admin);

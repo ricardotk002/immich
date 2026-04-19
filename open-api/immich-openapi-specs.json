@@ -21859,6 +21859,10 @@
             "pattern": "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
             "type": "string"
           },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
+            "type": "boolean"
+          },
           "name": {
             "description": "User name",
             "example": "Admin",
@@ -25326,6 +25330,10 @@
             "description": "Grant admin privileges",
             "type": "boolean"
           },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
+            "type": "boolean"
+          },
           "name": {
             "description": "User name",
             "type": "string"
@@ -25414,6 +25422,10 @@
             "description": "Is admin user",
             "type": "boolean"
           },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
+            "type": "boolean"
+          },
           "license": {
             "allOf": [
               {
@@ -25480,6 +25492,7 @@
           "email",
           "id",
           "isAdmin",
+          "mlTrainingOptIn",
           "license",
           "name",
           "oauthId",
@@ -25512,6 +25525,10 @@
           },
           "isAdmin": {
             "description": "Grant admin privileges",
+            "type": "boolean"
+          },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
             "type": "boolean"
           },
           "name": {
@@ -25756,6 +25773,10 @@
             "format": "email",
             "pattern": "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$",
             "type": "string"
+          },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
+            "type": "boolean"
           },
           "name": {
             "description": "User name",

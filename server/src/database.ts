@@ -139,6 +139,7 @@ export type User = {
 export type UserAdmin = User & {
   storageLabel: string | null;
   shouldChangePassword: boolean;
+  mlTrainingOptIn: boolean;
   isAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -370,6 +371,7 @@ export const columns = {
     'oauthId',
     'profileImagePath',
     'shouldChangePassword',
+    'mlTrainingOptIn',
     'storageLabel',
     'quotaSizeInBytes',
     'quotaUsageInBytes',
