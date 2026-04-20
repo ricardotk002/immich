@@ -163,7 +163,7 @@ def get_entries(entries: str = Form()) -> InferenceEntries:
         raise HTTPException(422, "Invalid request format.")
 
 
-app = FastAPI(lifespan=lifespan, docs_url="/docs", redoc_url="/redoc")
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
