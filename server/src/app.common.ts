@@ -78,6 +78,8 @@ export async function configureExpress(
         setHeaders: (res, pathname) => {
           if (pathname.startsWith(`/_app/immutable`) && res.statusCode === 200) {
             res.setHeader('cache-control', 'public,max-age=31536000,immutable');
+          } else if (pathname === '/' || pathname.endsWith('.html')) {
+            res.setHeader('cache-control', 'no-cache');
           }
         },
       }),
