@@ -60,6 +60,12 @@ export class StickerGenerationTable {
   @Column({ type: 'text', nullable: true })
   retrainRunId!: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  s3StickerKey!: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  usedForTrainingAt!: Timestamp | null;
+
   @CreateDateColumn()
   createdAt!: Generated<Timestamp>;
 }

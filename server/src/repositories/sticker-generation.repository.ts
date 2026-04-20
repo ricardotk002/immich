@@ -20,6 +20,7 @@ export interface StickerGenerationUpdate {
   editedPixels?: number;
   mlSuggestedMask?: string | null;
   userSavedMask?: string | null;
+  s3StickerKey?: string | null;
   qualityStatus?: StickerQualityStatus;
   qualityCheckedAt?: Date | null;
   qualityCheckVersion?: number | null;
@@ -57,6 +58,7 @@ export class StickerGenerationRepository {
     if (patch.editedPixels !== undefined) values.editedPixels = patch.editedPixels;
     if (patch.mlSuggestedMask !== undefined) values.mlSuggestedMask = patch.mlSuggestedMask;
     if (patch.userSavedMask !== undefined) values.userSavedMask = patch.userSavedMask;
+    if (patch.s3StickerKey !== undefined) values.s3StickerKey = patch.s3StickerKey;
     if (patch.qualityStatus !== undefined) values.qualityStatus = patch.qualityStatus;
     if (patch.qualityCheckedAt !== undefined) values.qualityCheckedAt = patch.qualityCheckedAt;
     if (patch.qualityCheckVersion !== undefined) values.qualityCheckVersion = patch.qualityCheckVersion;

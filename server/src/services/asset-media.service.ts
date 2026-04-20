@@ -377,7 +377,8 @@ export class AssetMediaService extends BaseService {
       saved: true,
       numTries: dto.numTries ?? (row.numTries as number),
       editedPixels: dto.editedPixels ?? 0,
-      userSavedMask: stickerKey,
+      userSavedMask: dto.userSavedMask ?? null,
+      s3StickerKey: stickerKey,
     });
   }
 
