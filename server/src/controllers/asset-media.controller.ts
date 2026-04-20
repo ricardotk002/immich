@@ -28,6 +28,7 @@ import {
   AssetMediaOptionsDto,
   AssetMediaSize,
   StickerDto,
+  StickerResolveDto,
 } from 'src/dtos/asset-media.dto';
 import { AssetDownloadOriginalDto } from 'src/dtos/asset.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
@@ -185,14 +186,32 @@ export class AssetMediaController {
   @Authenticated({ permission: Permission.AssetView })
   @Endpoint({
     summary: 'Generate sticker mask',
-    description: 'Runs segmentation inference on the asset and returns a base64 PNG mask.',
+    description: 'Runs segmentation inference on the asset and returns a base64 PNG mask and a stickerId for resolution.',
+    history: new HistoryBuilder().added('v1'),
   })
   generateStickerMask(
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: StickerDto,
-  ): Promise<{ mask: string }> {
+  ): Promise<{ mask: string; stickerId: string }> {
     return this.service.generateStickerMask(auth, id, dto);
+  }
+
+  @Post(':id/sticker/:stickerId/resolve')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Authenticated({ permission: Permission.AssetView })
+  @Endpoint({
+    summary: 'Resolve sticker',
+    description: 'Save or discard a generated sticker. If saved=true and a userSavedMask is provided the final mask is composited with the asset and stored in the object store.',
+    history: new HistoryBuilder().added('v1'),
+  })
+  resolveStickerMask(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Param('stickerId') stickerId: string,
+    @Body() dto: StickerResolveDto,
+  ): Promise<void> {
+    return this.service.resolveStickerMask(auth, id, stickerId, dto);
   }
 
   @Post('bulk-upload-check')

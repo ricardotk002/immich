@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { extname } from 'node:path';
 import sanitize from 'sanitize-filename';
+import sharp from 'sharp';
 import { StorageCore } from 'src/cores/storage.core';
 import { AuthSharedLink } from 'src/database';
 import {
@@ -16,8 +18,10 @@ import {
   AssetMediaOptionsDto,
   AssetMediaSize,
   StickerDto,
+  StickerResolveDto,
   UploadFieldName,
 } from 'src/dtos/asset-media.dto';
+import { StickerGenerationRepository } from 'src/repositories/sticker-generation.repository';
 import { AssetDownloadOriginalDto } from 'src/dtos/asset.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
@@ -45,6 +49,25 @@ export interface AssetMediaRedirectResponse {
 
 @Injectable()
 export class AssetMediaService extends BaseService {
+  @Inject()
+  private stickerGenerationRepository!: StickerGenerationRepository;
+
+  private get stickerS3(): S3Client {
+    return new S3Client({
+      endpoint: process.env.STICKER_S3_ENDPOINT ?? 'https://chi.tacc.chameleoncloud.org:7480',
+      region: 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.STICKER_S3_ACCESS_KEY ?? '',
+        secretAccessKey: process.env.STICKER_S3_SECRET_KEY ?? '',
+      },
+      forcePathStyle: true,
+    });
+  }
+
+  private get stickerBucket(): string {
+    return process.env.STICKER_S3_BUCKET ?? 'objstore-proj28';
+  }
+
   async getUploadAssetIdByChecksum(auth: AuthDto, checksum?: string): Promise<AssetMediaResponseDto | undefined> {
     if (!checksum) {
       return;
@@ -250,7 +273,7 @@ export class AssetMediaService extends BaseService {
     });
   }
 
-  async generateStickerMask(auth: AuthDto, id: string, dto: StickerDto): Promise<{ mask: string }> {
+  async generateStickerMask(auth: AuthDto, id: string, dto: StickerDto): Promise<{ mask: string; stickerId: string }> {
     await this.requireAccess({ auth, permission: Permission.AssetView, ids: [id] });
 
     const asset = await this.assetRepository.getById(id, {});
@@ -270,18 +293,92 @@ export class AssetMediaService extends BaseService {
       body.point_coords = dto.pointCoords;
     }
 
+    const t0 = Date.now();
     const response = await fetch(inferenceUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    const processingTimeMs = Date.now() - t0;
 
     if (!response.ok) {
       throw new InternalServerErrorException(`Inference request failed: ${response.statusText}`);
     }
 
     const result = (await response.json()) as { mask: string };
-    return { mask: result.mask };
+    const maskBuffer = Buffer.from(result.mask, 'base64');
+
+    // Insert DB row first to get the stickerId (used as S3 key path)
+    const stickerId = await this.stickerGenerationRepository.insert({
+      userId: auth.user.id,
+      assetId: id,
+      bbox: dto.bbox ?? null,
+      pointCoords: dto.pointCoords ?? null,
+      mlSuggestedMaskData: maskBuffer,
+      processingTimeMs,
+    });
+
+    // Upload mask PNG to object store and record the S3 key — non-fatal if it fails
+    const maskKey = `stickers/${id}/${stickerId}/mask.png`;
+    try {
+      await this.stickerS3.send(
+        new PutObjectCommand({ Bucket: this.stickerBucket, Key: maskKey, Body: maskBuffer, ContentType: 'image/png' }),
+      );
+      await this.stickerGenerationRepository.update(stickerId, { mlSuggestedMask: maskKey });
+    } catch {
+      // mask binary is already persisted in the DB row
+    }
+
+    return { mask: result.mask, stickerId };
+  }
+
+  async resolveStickerMask(auth: AuthDto, assetId: string, stickerId: string, dto: StickerResolveDto): Promise<void> {
+    await this.requireAccess({ auth, permission: Permission.AssetView, ids: [assetId] });
+
+    const row = await this.stickerGenerationRepository.getById(stickerId);
+    if (!row || row.assetId !== assetId || row.userId !== auth.user.id) {
+      throw new NotFoundException('Sticker not found');
+    }
+
+    if (!dto.saved) {
+      await this.stickerGenerationRepository.update(stickerId, {
+        saved: false,
+        numTries: dto.numTries ?? (row.numTries as number),
+        editedPixels: dto.editedPixels ?? 0,
+      });
+      return;
+    }
+
+    // Determine which mask to use for the sticker composite
+    const maskBase64 = dto.userSavedMask ?? null;
+    let maskBuffer: Buffer;
+    if (maskBase64) {
+      maskBuffer = Buffer.from(maskBase64, 'base64');
+    } else if (row.mlSuggestedMaskData) {
+      maskBuffer = row.mlSuggestedMaskData as Buffer;
+    } else {
+      throw new BadRequestException('No mask available to generate sticker');
+    }
+
+    // Load original image and composite with mask to produce a transparent PNG sticker
+    const asset = await this.assetRepository.getById(assetId, {});
+    if (!asset) {
+      throw new NotFoundException('Asset not found');
+    }
+    const imageBuffer = await this.storageRepository.readFile(asset.originalPath);
+    const stickerBuffer = await sharp(imageBuffer).ensureAlpha().composite([{ input: maskBuffer, blend: 'dest-in' }]).png().toBuffer();
+
+    const stickerKey = `stickers/${assetId}/${stickerId}/sticker.png`;
+    await this.stickerS3.send(
+      new PutObjectCommand({ Bucket: this.stickerBucket, Key: stickerKey, Body: stickerBuffer, ContentType: 'image/png' }),
+    );
+
+    await this.stickerGenerationRepository.update(stickerId, {
+      saved: true,
+      numTries: dto.numTries ?? (row.numTries as number),
+      editedPixels: dto.editedPixels ?? 0,
+      userSavedMask: stickerKey,
+    });
   }
 
   async bulkUploadCheck(auth: AuthDto, dto: AssetBulkUploadCheckDto): Promise<AssetBulkUploadCheckResponseDto> {

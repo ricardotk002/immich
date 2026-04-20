@@ -79,7 +79,17 @@ const StickerSchema = z
   })
   .meta({ id: 'StickerDto' });
 
+const StickerResolveSchema = z
+  .object({
+    saved: z.boolean().describe('Whether the user saved the sticker'),
+    numTries: z.number().int().min(1).optional().describe('How many tries the user made'),
+    editedPixels: z.number().int().min(0).optional().describe('Number of pixels edited with the brush'),
+    userSavedMask: z.string().optional().describe('Base64-encoded final mask PNG (if edited)'),
+  })
+  .meta({ id: 'StickerResolveDto' });
+
 export class AssetMediaOptionsDto extends createZodDto(AssetMediaOptionsSchema) {}
 export class AssetMediaCreateDto extends createZodDto(AssetMediaCreateSchema) {}
 export class AssetBulkUploadCheckDto extends createZodDto(AssetBulkUploadCheckSchema) {}
 export class StickerDto extends createZodDto(StickerSchema) {}
+export class StickerResolveDto extends createZodDto(StickerResolveSchema) {}
