@@ -261,7 +261,7 @@ export class AssetMediaService extends BaseService {
     const imageBuffer = await this.storageRepository.readFile(asset.originalPath);
     const imageBase64 = imageBuffer.toString('base64');
 
-    const inferenceUrl = 'http://192.5.87.107:8004/predict';
+    const inferenceUrl = `${process.env.STICKER_GEN_URL ?? 'http://localhost:8004'}/predict`;
     const body: Record<string, unknown> = { image: imageBase64 };
     if (dto.bbox) {
       body.bbox = dto.bbox;

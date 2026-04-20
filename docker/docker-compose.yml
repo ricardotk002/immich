@@ -25,6 +25,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env
+    environment:
+      STICKER_GEN_URL: ${STICKER_GEN_URL:-http://172.17.0.1:8004}
     ports:
       - '2283:2283'
     depends_on:
