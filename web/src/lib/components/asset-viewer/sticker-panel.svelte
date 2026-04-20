@@ -45,9 +45,8 @@
     getAssetMediaUrl({ id: asset.id, size: AssetMediaSize.Thumbnail, cacheKey: asset.thumbhash }),
   );
 
-  // Canvas is 440x330 (4:3) displayed at 100% width
   const CANVAS_W = 440;
-  const CANVAS_H = 330;
+  const CANVAS_H = $derived(Math.round(CANVAS_W * originalH / originalW));
 
   const getRelativePos = (e: MouseEvent): { x: number; y: number } => {
     if (!overlayCanvas) return { x: 0, y: 0 };
@@ -64,7 +63,7 @@
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
     if (currentRect && currentRect.w > 0.005) {
-      ctx.strokeStyle = '#22c55e';
+      ctx.strokeStyle = '#4ade80';
       ctx.lineWidth = 2;
       ctx.strokeRect(
         currentRect.x * CANVAS_W,
@@ -73,9 +72,15 @@
         currentRect.h * CANVAS_H,
       );
     } else if (pointPos) {
-      ctx.fillStyle = '#22c55e';
+      const px = pointPos.x * CANVAS_W;
+      const py = pointPos.y * CANVAS_H;
       ctx.beginPath();
-      ctx.arc(pointPos.x * CANVAS_W, pointPos.y * CANVAS_H, 6, 0, Math.PI * 2);
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#4ade80';
       ctx.fill();
     }
   };
@@ -106,13 +111,23 @@
   };
 
   const onMouseUp = (e: MouseEvent) => {
+    if (!isDrawing) return;
     isDrawing = false;
     if (!currentRect || currentRect.w < 0.01) {
-      // treat as point click
       pointPos = getRelativePos(e);
       currentRect = null;
     }
     drawOverlay();
+  };
+
+  const onMouseLeave = () => {
+    if (isDrawing) {
+      isDrawing = false;
+      // discard incomplete drag; keep any previously committed point/rect
+      currentRect = null;
+      pointPos = null;
+      drawOverlay();
+    }
   };
 
   const hasInput = $derived(
@@ -140,7 +155,7 @@
       if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
 
       const { mask } = (await response.json()) as { mask: string };
-      await compositeWithMask(mask);
+      await compositeWithMask(mask, !!currentRect);
       mode = 'result';
     } catch (err) {
       handleError(err, 'Failed to generate sticker');
@@ -157,7 +172,7 @@
       img.src = src;
     });
 
-  const compositeWithMask = async (maskBase64: string) => {
+  const compositeWithMask = async (maskBase64: string, invertMask: boolean) => {
     const [img, maskImg] = await Promise.all([
       loadImage(previewUrl),
       loadImage(`data:image/png;base64,${maskBase64}`),
@@ -182,7 +197,7 @@
     const maskData = maskCtx.getImageData(0, 0, w, h);
 
     for (let i = 0; i < imageData.data.length; i += 4) {
-      imageData.data[i + 3] = 255 - maskData.data[i];
+      imageData.data[i + 3] = invertMask ? 255 - maskData.data[i] : maskData.data[i];
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -300,7 +315,7 @@
     originalImageData = undefined;
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d')!;
-      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     }
   };
 </script>
@@ -365,10 +380,11 @@
           width={CANVAS_W}
           height={CANVAS_H}
           class="absolute inset-0 w-full h-full cursor-crosshair"
+          style="aspect-ratio: {CANVAS_W} / {CANVAS_H}"
           onmousedown={onMouseDown}
           onmousemove={onMouseMove}
           onmouseup={onMouseUp}
-          onmouseleave={onMouseUp}
+          onmouseleave={onMouseLeave}
         ></canvas>
       </div>
 
