@@ -203,7 +203,25 @@
 
     ctx.putImageData(imageData, 0, 0);
     originalImageData = ctx.getImageData(0, 0, w, h);
-    stickerDataUrl = canvas.toDataURL('image/png');
+
+    // White outline
+    const outlineThickness = Math.max(4, Math.round(w / 120));
+    const outlined = document.createElement('canvas');
+    outlined.width = w + outlineThickness * 2;
+    outlined.height = h + outlineThickness * 2;
+    const octx = outlined.getContext('2d')!;
+    const steps = 20;
+    for (let i = 0; i < steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      octx.drawImage(canvas, outlineThickness + Math.cos(angle) * outlineThickness, outlineThickness + Math.sin(angle) * outlineThickness);
+    }
+    octx.globalCompositeOperation = 'source-atop';
+    octx.fillStyle = 'white';
+    octx.fillRect(0, 0, outlined.width, outlined.height);
+    octx.globalCompositeOperation = 'source-over';
+    octx.drawImage(canvas, outlineThickness, outlineThickness);
+
+    stickerDataUrl = outlined.toDataURL('image/png');
   };
 
   const dataUrlToBlob = (dataUrl: string): Blob => {
