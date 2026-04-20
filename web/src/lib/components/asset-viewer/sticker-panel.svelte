@@ -29,10 +29,11 @@
   let originalImageData: ImageData | undefined;
 
   // Edit
-  let editCanvas: HTMLCanvasElement | undefined = $state();
+  let markingsCanvas: HTMLCanvasElement | undefined = $state();
   let brushSize = $state(20);
-  let editTool: 'erase' | 'restore' = $state('erase');
   let isPainting = $state(false);
+  let markingsDataUrl: string | null = $state(null);
+  let paintedCircles: { x: number; y: number; r: number }[] = [];
 
   const dimensions = $derived(asset.exifInfo ? getDimensions(asset.exifInfo) : { width: 1920, height: 1080 });
   const originalW = $derived(dimensions.width ?? 1920);
@@ -233,28 +234,52 @@
   };
 
   const openEdit = () => {
+    markingsDataUrl = null;
+    paintedCircles = [];
     mode = 'editing';
   };
 
   $effect(() => {
-    if (mode === 'editing' && editCanvas && stickerDataUrl) {
-      const dataUrl = stickerDataUrl;
-      loadImage(dataUrl).then((img) => {
-        if (!editCanvas) return;
-        editCanvas.width = img.naturalWidth;
-        editCanvas.height = img.naturalHeight;
-        const ctx = editCanvas.getContext('2d')!;
-        ctx.clearRect(0, 0, editCanvas.width, editCanvas.height);
-        ctx.drawImage(img, 0, 0);
+    if (mode === 'editing' && markingsCanvas && stickerDataUrl) {
+      loadImage(stickerDataUrl).then((img) => {
+        if (!markingsCanvas) return;
+        markingsCanvas.width = img.naturalWidth;
+        markingsCanvas.height = img.naturalHeight;
+        const ctx = markingsCanvas.getContext('2d')!;
+        ctx.clearRect(0, 0, markingsCanvas.width, markingsCanvas.height);
       });
     }
   });
 
   const closeEdit = () => {
-    if (editCanvas) {
-      stickerDataUrl = editCanvas.toDataURL('image/png');
+    if (markingsCanvas) {
+      markingsDataUrl = markingsCanvas.toDataURL('image/png');
     }
     mode = 'result';
+  };
+
+  const clearMarkings = () => {
+    if (!markingsCanvas) return;
+    paintedCircles = [];
+    redrawMarkings();
+    markingsDataUrl = null;
+  };
+
+  const redrawMarkings = () => {
+    if (!markingsCanvas) return;
+    const ctx = markingsCanvas.getContext('2d')!;
+    ctx.clearRect(0, 0, markingsCanvas.width, markingsCanvas.height);
+    if (paintedCircles.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.45)';
+    ctx.beginPath();
+    for (const { x, y, r } of paintedCircles) {
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.restore();
   };
 
   const onEditMouseDown = (e: MouseEvent) => {
@@ -269,42 +294,14 @@
   };
 
   const paint = (e: MouseEvent) => {
-    if (!editCanvas) return;
-    const rect = editCanvas.getBoundingClientRect();
-    const scaleX = editCanvas.width / rect.width;
-    const scaleY = editCanvas.height / rect.height;
+    if (!markingsCanvas) return;
+    const rect = markingsCanvas.getBoundingClientRect();
+    const scaleX = markingsCanvas.width / rect.width;
     const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    const y = (e.clientY - rect.top) * (markingsCanvas.height / rect.height);
     const r = (brushSize / 2) * scaleX;
-    const ctx = editCanvas.getContext('2d')!;
-
-    if (editTool === 'erase') {
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    } else if (originalImageData) {
-      const imageData = ctx.getImageData(0, 0, editCanvas.width, editCanvas.height);
-      const rx = Math.ceil(r);
-      const cx = Math.floor(x);
-      const cy = Math.floor(y);
-      for (let dy = -rx; dy <= rx; dy++) {
-        for (let dx = -rx; dx <= rx; dx++) {
-          if (dx * dx + dy * dy > r * r) continue;
-          const px = cx + dx;
-          const py = cy + dy;
-          if (px < 0 || py < 0 || px >= editCanvas.width || py >= editCanvas.height) continue;
-          const i = (py * editCanvas.width + px) * 4;
-          imageData.data[i] = originalImageData.data[i];
-          imageData.data[i + 1] = originalImageData.data[i + 1];
-          imageData.data[i + 2] = originalImageData.data[i + 2];
-          imageData.data[i + 3] = originalImageData.data[i + 3];
-        }
-      }
-      ctx.putImageData(imageData, 0, 0);
-    }
+    paintedCircles.push({ x, y, r });
+    redrawMarkings();
   };
 
   const reset = () => {
@@ -312,6 +309,8 @@
     currentRect = null;
     pointPos = null;
     stickerDataUrl = null;
+    markingsDataUrl = null;
+    paintedCircles = [];
     originalImageData = undefined;
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d')!;
@@ -424,6 +423,13 @@
       </div>
 
       <button
+        class="w-full rounded-xl py-2 bg-immich-primary hover:bg-immich-primary/90 text-sm font-medium text-white transition-colors"
+        onclick={openEdit}
+      >
+        {$t('edit_sticker')}
+      </button>
+
+      <button
         class="w-full rounded-xl py-2 bg-white/5 hover:bg-white/10 text-sm text-gray-400 transition-colors"
         onclick={reset}
       >
@@ -431,12 +437,16 @@
       </button>
 
     {:else if mode === 'editing'}
-      <!-- Edit canvas -->
+      <p class="text-sm text-gray-300 text-center">Paint over areas you want to exclude</p>
+
+      <!-- Sticker + markings overlay -->
       <div class="relative w-full rounded-lg overflow-hidden checkerboard">
+        {#if stickerDataUrl}
+          <img src={stickerDataUrl} alt="sticker" class="w-full block pointer-events-none" draggable="false" />
+        {/if}
         <canvas
-          bind:this={editCanvas}
-          class="w-full block cursor-crosshair"
-          style="image-rendering: pixelated;"
+          bind:this={markingsCanvas}
+          class="absolute inset-0 w-full h-full cursor-crosshair"
           onmousedown={onEditMouseDown}
           onmousemove={onEditMouseMove}
           onmouseup={onEditMouseUp}
@@ -446,31 +456,21 @@
 
       <div class="w-full flex items-center gap-3">
         <span class="text-sm text-gray-300 shrink-0">{$t('brush_size')}</span>
-        <input
-          type="range"
-          min="5"
-          max="60"
-          bind:value={brushSize}
-          class="flex-1 accent-immich-primary"
-        />
+        <input type="range" min="5" max="80" bind:value={brushSize} class="flex-1 accent-immich-primary" />
       </div>
 
       <div class="flex gap-2 w-full">
         <button
-          class="flex-1 rounded-xl py-2 font-medium text-sm transition-colors {editTool === 'restore'
-            ? 'bg-immich-primary text-white'
-            : 'bg-white/10 hover:bg-white/20 text-white'}"
-          onclick={() => (editTool = 'restore')}
+          class="flex-1 rounded-xl py-2 bg-white/10 hover:bg-white/20 text-sm font-medium transition-colors"
+          onclick={clearMarkings}
         >
-          {$t('restore')}
+          Clear
         </button>
         <button
-          class="flex-1 rounded-xl py-2 font-medium text-sm transition-colors {editTool === 'erase'
-            ? 'bg-immich-primary text-white'
-            : 'bg-white/10 hover:bg-white/20 text-white'}"
-          onclick={() => (editTool = 'erase')}
+          class="flex-1 rounded-xl py-2 bg-immich-primary hover:bg-immich-primary/90 text-sm font-medium text-white transition-colors"
+          onclick={closeEdit}
         >
-          {$t('erase')}
+          {$t('done')}
         </button>
       </div>
     {/if}
