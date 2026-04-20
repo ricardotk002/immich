@@ -43,6 +43,7 @@
     mdiArrowRight,
     mdiCompare,
     mdiDotsVertical,
+    mdiEmoticonOutline,
     mdiImageSearch,
     mdiPresentationPlay,
     mdiVideoOutline,
@@ -140,6 +141,16 @@
     {/if}
 
     <ActionButton action={Actions.Edit} />
+
+    {#if asset.type === AssetTypeEnum.Image && !sharedLink}
+      <ActionButton
+        action={{
+          title: 'Generate Sticker',
+          icon: mdiEmoticonOutline,
+          onAction: () => assetViewerManager.toggleStickerPanel(),
+        }}
+      />
+    {/if}
 
     {#if isOwner}
       <DeleteAction {asset} {onAction} {preAction} {onUndoDelete} />

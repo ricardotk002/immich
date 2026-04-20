@@ -15,6 +15,7 @@ import {
   AssetMediaCreateDto,
   AssetMediaOptionsDto,
   AssetMediaSize,
+  StickerDto,
   UploadFieldName,
 } from 'src/dtos/asset-media.dto';
 import { AssetDownloadOriginalDto } from 'src/dtos/asset.dto';
@@ -247,6 +248,40 @@ export class AssetMediaService extends BaseService {
       contentType: mimeTypes.lookup(filepath),
       cacheControl: CacheControl.PrivateWithCache,
     });
+  }
+
+  async generateStickerMask(auth: AuthDto, id: string, dto: StickerDto): Promise<{ mask: string }> {
+    await this.requireAccess({ auth, permission: Permission.AssetView, ids: [id] });
+
+    const asset = await this.assetRepository.getById(id, {});
+    if (!asset) {
+      throw new NotFoundException('Asset not found');
+    }
+
+    const imageBuffer = await this.storageRepository.readFile(asset.originalPath);
+    const imageBase64 = imageBuffer.toString('base64');
+
+    const inferenceUrl = 'http://192.5.87.107:8004/predict';
+    const body: Record<string, unknown> = { image: imageBase64 };
+    if (dto.bbox) {
+      body.bbox = dto.bbox;
+    }
+    if (dto.pointCoords) {
+      body.point_coords = dto.pointCoords;
+    }
+
+    const response = await fetch(inferenceUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(`Inference request failed: ${response.statusText}`);
+    }
+
+    const result = (await response.json()) as { mask: string };
+    return { mask: result.mask };
   }
 
   async bulkUploadCheck(auth: AuthDto, dto: AssetBulkUploadCheckDto): Promise<AssetBulkUploadCheckResponseDto> {

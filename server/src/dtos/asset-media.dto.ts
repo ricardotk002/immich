@@ -69,6 +69,17 @@ const AssetBulkUploadCheckSchema = z
   })
   .meta({ id: 'AssetBulkUploadCheckDto' });
 
+const StickerSchema = z
+  .object({
+    bbox: z.array(z.number()).length(4).optional().describe('Bounding box [x, y, w, h]'),
+    pointCoords: z.array(z.array(z.number()).length(2)).min(1).optional().describe('Point coordinates [[x, y]]'),
+  })
+  .refine((data) => data.bbox !== undefined || data.pointCoords !== undefined, {
+    message: 'Either bbox or pointCoords must be provided',
+  })
+  .meta({ id: 'StickerDto' });
+
 export class AssetMediaOptionsDto extends createZodDto(AssetMediaOptionsSchema) {}
 export class AssetMediaCreateDto extends createZodDto(AssetMediaCreateSchema) {}
 export class AssetBulkUploadCheckDto extends createZodDto(AssetBulkUploadCheckSchema) {}
+export class StickerDto extends createZodDto(StickerSchema) {}

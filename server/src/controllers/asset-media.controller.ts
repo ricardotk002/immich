@@ -27,6 +27,7 @@ import {
   AssetMediaCreateDto,
   AssetMediaOptionsDto,
   AssetMediaSize,
+  StickerDto,
 } from 'src/dtos/asset-media.dto';
 import { AssetDownloadOriginalDto } from 'src/dtos/asset.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
@@ -177,6 +178,21 @@ export class AssetMediaController {
     @Next() next: NextFunction,
   ) {
     await sendFile(res, next, () => this.service.playbackVideo(auth, id), this.logger, this.storageRepository);
+  }
+
+  @Post(':id/sticker')
+  @HttpCode(HttpStatus.OK)
+  @Authenticated({ permission: Permission.AssetView })
+  @Endpoint({
+    summary: 'Generate sticker mask',
+    description: 'Runs segmentation inference on the asset and returns a base64 PNG mask.',
+  })
+  generateStickerMask(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Body() dto: StickerDto,
+  ): Promise<{ mask: string }> {
+    return this.service.generateStickerMask(auth, id, dto);
   }
 
   @Post('bulk-upload-check')

@@ -43,6 +43,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
   isShowActivityPanel = $state(false);
   isPlayingMotionPhoto = $state(false);
   isShowEditor = $state(false);
+  isShowStickerPanel = $state(false);
   #isFaceEditMode = $state(false);
   #isEditFacesPanelOpen = $state(false);
   #viewingAssetStoreState = $state<AssetResponseDto>();
@@ -152,8 +153,19 @@ class AssetViewerManager extends BaseEventManager<Events> {
     this.zoomState = createDefaultZoomState();
   }
 
+  toggleStickerPanel() {
+    this.closeDetailPanel();
+    this.closeActivityPanel();
+    this.isShowStickerPanel = !this.isShowStickerPanel;
+  }
+
+  closeStickerPanel() {
+    this.isShowStickerPanel = false;
+  }
+
   toggleActivityPanel() {
     this.closeDetailPanel();
+    this.closeStickerPanel();
     this.isShowActivityPanel = !this.isShowActivityPanel;
   }
 
@@ -167,6 +179,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
 
   toggleDetailPanel() {
     this.closeActivityPanel();
+    this.closeStickerPanel();
     this.isShowDetailPanel = !this.isShowDetailPanel;
   }
 
@@ -203,6 +216,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
     this.closeEditor();
     this.closeFaceEditMode();
     this.closeEditFacesPanel();
+    this.closeStickerPanel();
   }
 
   setAsset(asset: AssetResponseDto) {

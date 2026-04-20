@@ -4119,6 +4119,55 @@
         "x-immich-state": "Stable"
       }
     },
+    "/assets/{id}/sticker": {
+      "post": {
+        "description": "Runs segmentation inference on the asset and returns a base64 PNG mask.",
+        "operationId": "generateStickerMask",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickerDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Generate sticker mask",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-permission": "asset.view"
+      }
+    },
     "/assets/{id}/thumbnail": {
       "get": {
         "description": "Retrieve the thumbnail image for the specified asset. Viewing the fullsize thumbnail might redirect to downloadAsset, which requires a different permission.",
@@ -22339,6 +22388,33 @@
         },
         "type": "object"
       },
+      "StickerDto": {
+        "properties": {
+          "bbox": {
+            "description": "Bounding box [x, y, w, h]",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array"
+          },
+          "pointCoords": {
+            "description": "Point coordinates [[x, y]]",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "StorageFolder": {
         "description": "Storage folder",
         "enum": [
@@ -25422,10 +25498,6 @@
             "description": "Is admin user",
             "type": "boolean"
           },
-          "mlTrainingOptIn": {
-            "description": "Allow data to be used for machine learning training",
-            "type": "boolean"
-          },
           "license": {
             "allOf": [
               {
@@ -25433,6 +25505,10 @@
               }
             ],
             "nullable": true
+          },
+          "mlTrainingOptIn": {
+            "description": "Allow data to be used for machine learning training",
+            "type": "boolean"
           },
           "name": {
             "description": "User name",
@@ -25492,8 +25568,8 @@
           "email",
           "id",
           "isAdmin",
-          "mlTrainingOptIn",
           "license",
+          "mlTrainingOptIn",
           "name",
           "oauthId",
           "profileChangedAt",

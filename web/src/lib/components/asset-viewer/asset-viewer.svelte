@@ -42,6 +42,7 @@
   import ActivityStatus from './activity-status.svelte';
   import ActivityViewer from './activity-viewer.svelte';
   import DetailPanel from './detail-panel.svelte';
+  import StickerPanel from './sticker-panel.svelte';
   import EditorPanel from './editor/editor-panel.svelte';
   import CropArea from './editor/transform-tool/crop-area.svelte';
   import ImagePanoramaViewer from './image-panorama-viewer.svelte';
@@ -625,6 +626,17 @@
           </div>
         {/each}
       </div>
+    </div>
+  {/if}
+
+  {#if assetViewerManager.isShowStickerPanel && asset.type === AssetTypeEnum.Image && !assetViewerManager.isShowEditor}
+    <div
+      transition:fly={{ duration: 150 }}
+      id="sticker-panel"
+      class="row-start-1 row-span-5 w-90 overflow-y-auto transition-all dark:border-l dark:border-s-immich-dark-gray"
+      translate="no"
+    >
+      <StickerPanel {asset} onClose={() => assetViewerManager.closeStickerPanel()} />
     </div>
   {/if}
 
