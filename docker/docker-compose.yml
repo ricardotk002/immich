@@ -38,6 +38,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-immich}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-immich_minio_secret}
       MINIO_BUCKET: ${MINIO_BUCKET:-immich}
+      IMMICH_TELEMETRY_INCLUDE: ${IMMICH_TELEMETRY_INCLUDE:-all}
     ports:
       - '2283:2283'
     depends_on:
@@ -153,6 +154,17 @@ services:
     restart: always
     healthcheck:
       disable: false
+
+  adminer:
+    container_name: immich_adminer
+    image: adminer:latest
+    ports:
+      - '8080:8080'
+    environment:
+      ADMINER_DEFAULT_SERVER: database
+    depends_on:
+      - database
+    restart: always
 
 volumes:
   model-cache:
