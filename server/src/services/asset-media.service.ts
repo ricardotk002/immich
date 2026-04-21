@@ -366,7 +366,24 @@ export class AssetMediaService extends BaseService {
       throw new NotFoundException('Asset not found');
     }
     const imageBuffer = await this.storageRepository.readFile(asset.originalPath);
-    const stickerBuffer = await sharp(imageBuffer).ensureAlpha().composite([{ input: maskBuffer, blend: 'dest-in' }]).png().toBuffer();
+    const { width, height } = await sharp(imageBuffer).metadata();
+    const { data: greyData } = await sharp(maskBuffer)
+      .resize(width, height)
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    // Model returns background=white when a bbox prompt was used; invert so foreground is kept
+    const invertMask = !!(row.bbox && (row.bbox as number[]).length === 4);
+    const alphaRgba = Buffer.alloc(width! * height! * 4, 0);
+    for (let i = 0; i < width! * height!; i++) {
+      const grey = (greyData as Buffer)[i];
+      alphaRgba[i * 4 + 3] = invertMask ? 255 - grey : grey;
+    }
+    const stickerBuffer = await sharp(imageBuffer)
+      .ensureAlpha()
+      .composite([{ input: alphaRgba, raw: { width: width!, height: height!, channels: 4 }, blend: 'dest-in' }])
+      .png()
+      .toBuffer();
 
     const stickerKey = `stickers/${assetId}/${stickerId}/sticker.png`;
     await this.stickerS3.send(

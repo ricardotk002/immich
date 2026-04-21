@@ -27,6 +27,9 @@
   // Result
   let stickerDataUrl: string | null = $state(null);
   let originalImageData: ImageData | undefined;
+  let currentStickerId: string | null = $state(null);
+  let isSaving = $state(false);
+  let savedToLibrary = $state(false);
 
   // Edit
   let markingsCanvas: HTMLCanvasElement | undefined = $state();
@@ -155,7 +158,9 @@
 
       if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
 
-      const { mask } = (await response.json()) as { mask: string };
+      const { mask, stickerId } = (await response.json()) as { mask: string; stickerId: string };
+      currentStickerId = stickerId;
+      savedToLibrary = false;
       await compositeWithMask(mask, !!currentRect);
       mode = 'result';
     } catch (err) {
@@ -243,8 +248,14 @@
     }
   };
 
-  const saveToDevice = () => {
-    if (!stickerDataUrl) return;
+  const saveToDevice = async () => {
+    if (!stickerDataUrl || !currentStickerId) return;
+    // Persist to S3 first (fire-and-forget, don't block the download)
+    fetch(`/api/assets/${asset.id}/sticker/${currentStickerId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saved: true }),
+    }).catch(() => {});
     const a = document.createElement('a');
     a.href = stickerDataUrl;
     a.download = `sticker-${asset.id}.png`;
@@ -322,6 +333,38 @@
     redrawMarkings();
   };
 
+  const saveToLibrary = async () => {
+    if (!currentStickerId || !stickerDataUrl || isSaving) return;
+    isSaving = true;
+    try {
+      // 1. Persist sticker PNG to S3
+      const resolveRes = await fetch(`/api/assets/${asset.id}/sticker/${currentStickerId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saved: true }),
+      });
+      if (!resolveRes.ok) throw new Error(`Resolve failed: ${resolveRes.status}`);
+
+      // 2. Upload composited sticker as a new Immich asset so it appears in the library
+      const blob = dataUrlToBlob(stickerDataUrl);
+      const filename = `sticker-${asset.id}-${currentStickerId.slice(0, 8)}.png`;
+      const now = new Date().toISOString();
+      const form = new FormData();
+      form.append('assetData', blob, filename);
+      form.append('fileCreatedAt', now);
+      form.append('fileModifiedAt', now);
+      form.append('isFavorite', 'false');
+      const uploadRes = await fetch('/api/assets', { method: 'POST', body: form });
+      if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+
+      savedToLibrary = true;
+    } catch (err) {
+      handleError(err, 'Failed to save sticker to library');
+    } finally {
+      isSaving = false;
+    }
+  };
+
   const reset = () => {
     mode = 'draw';
     currentRect = null;
@@ -330,6 +373,8 @@
     markingsDataUrl = null;
     paintedCircles = [];
     originalImageData = undefined;
+    currentStickerId = null;
+    savedToLibrary = false;
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d')!;
       ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -441,7 +486,21 @@
       </div>
 
       <button
-        class="w-full rounded-xl py-2 bg-immich-primary hover:bg-immich-primary/90 text-sm font-medium text-white transition-colors"
+        class="w-full rounded-xl py-2 text-sm font-medium text-white transition-colors {savedToLibrary ? 'bg-green-600 cursor-default' : 'bg-immich-primary hover:bg-immich-primary/90'}"
+        onclick={saveToLibrary}
+        disabled={isSaving || savedToLibrary}
+      >
+        {#if isSaving}
+          Saving…
+        {:else if savedToLibrary}
+          Saved to library ✓
+        {:else}
+          Save to library
+        {/if}
+      </button>
+
+      <button
+        class="w-full rounded-xl py-2 bg-white/10 hover:bg-white/20 text-sm font-medium transition-colors"
         onclick={openEdit}
       >
         {$t('edit_sticker')}
