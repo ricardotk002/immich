@@ -73,6 +73,7 @@ const StickerSchema = z
   .object({
     bbox: z.array(z.number()).length(4).optional().describe('Bounding box [x, y, w, h]'),
     pointCoords: z.array(z.array(z.number()).length(2)).min(1).optional().describe('Point coordinates [[x, y]]'),
+    existingStickerId: z.string().uuid().optional().describe('Existing sticker ID to update on retry'),
   })
   .refine((data) => data.bbox !== undefined || data.pointCoords !== undefined, {
     message: 'Either bbox or pointCoords must be provided',

@@ -144,6 +144,9 @@
 
     try {
       const body: Record<string, unknown> = {};
+      if (currentStickerId) {
+        body.existingStickerId = currentStickerId;
+      }
       if (currentRect) {
         body.bbox = [currentRect.x * originalW, currentRect.y * originalH, currentRect.w * originalW, currentRect.h * originalH];
       } else if (pointPos) {
@@ -373,7 +376,6 @@
     markingsDataUrl = null;
     paintedCircles = [];
     originalImageData = undefined;
-    currentStickerId = null;
     savedToLibrary = false;
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d')!;
