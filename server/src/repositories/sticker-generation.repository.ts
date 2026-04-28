@@ -18,7 +18,11 @@ export interface StickerGenerationUpdate {
   saved?: boolean;
   numTries?: number;
   editedPixels?: number;
+  bbox?: number[] | null;
+  pointCoords?: number[][] | null;
   mlSuggestedMask?: string | null;
+  mlSuggestedMaskData?: Buffer | null;
+  processingTimeMs?: number;
   userSavedMask?: string | null;
   s3StickerKey?: string | null;
   qualityStatus?: StickerQualityStatus;
@@ -56,7 +60,11 @@ export class StickerGenerationRepository {
     if (patch.saved !== undefined) values.saved = patch.saved;
     if (patch.numTries !== undefined) values.numTries = patch.numTries;
     if (patch.editedPixels !== undefined) values.editedPixels = patch.editedPixels;
+    if (patch.bbox !== undefined) values.bbox = patch.bbox;
+    if (patch.pointCoords !== undefined) values.pointCoords = patch.pointCoords;
     if (patch.mlSuggestedMask !== undefined) values.mlSuggestedMask = patch.mlSuggestedMask;
+    if (patch.mlSuggestedMaskData !== undefined) values.mlSuggestedMaskData = patch.mlSuggestedMaskData;
+    if (patch.processingTimeMs !== undefined) values.processingTimeMs = patch.processingTimeMs;
     if (patch.userSavedMask !== undefined) values.userSavedMask = patch.userSavedMask;
     if (patch.s3StickerKey !== undefined) values.s3StickerKey = patch.s3StickerKey;
     if (patch.qualityStatus !== undefined) values.qualityStatus = patch.qualityStatus;

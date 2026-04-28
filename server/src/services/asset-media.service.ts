@@ -308,25 +308,50 @@ export class AssetMediaService extends BaseService {
     const result = (await response.json()) as { mask: string };
     const maskBuffer = Buffer.from(result.mask, 'base64');
 
-    // Insert DB row first to get the stickerId (used as S3 key path)
-    const stickerId = await this.stickerGenerationRepository.insert({
-      userId: auth.user.id,
-      assetId: id,
-      bbox: dto.bbox ?? null,
-      pointCoords: dto.pointCoords ?? null,
-      mlSuggestedMaskData: maskBuffer,
-      processingTimeMs,
-    });
+    let stickerId: string;
 
-    // Upload mask PNG to object store and record the S3 key — non-fatal if it fails
-    const maskKey = `stickers/${id}/${stickerId}/mask.png`;
-    try {
-      await this.stickerS3.send(
-        new PutObjectCommand({ Bucket: this.stickerBucket, Key: maskKey, Body: maskBuffer, ContentType: 'image/png' }),
-      );
-      await this.stickerGenerationRepository.update(stickerId, { mlSuggestedMask: maskKey });
-    } catch {
-      // mask binary is already persisted in the DB row
+    if (dto.existingStickerId) {
+      // Retry: update the existing row instead of inserting a new one
+      const existing = await this.stickerGenerationRepository.getById(dto.existingStickerId);
+      if (!existing || existing.assetId !== id || existing.userId !== auth.user.id) {
+        throw new NotFoundException('Sticker not found');
+      }
+      stickerId = dto.existingStickerId;
+      const maskKey = `stickers/${id}/${stickerId}/mask.png`;
+      try {
+        await this.stickerS3.send(
+          new PutObjectCommand({ Bucket: this.stickerBucket, Key: maskKey, Body: maskBuffer, ContentType: 'image/png' }),
+        );
+      } catch {
+        // mask binary persisted in DB below
+      }
+      await this.stickerGenerationRepository.update(stickerId, {
+        bbox: dto.bbox ?? null,
+        pointCoords: dto.pointCoords ?? null,
+        mlSuggestedMask: maskKey,
+        mlSuggestedMaskData: maskBuffer,
+        processingTimeMs,
+        numTries: (existing.numTries as number) + 1,
+      });
+    } else {
+      // First attempt: insert a new row
+      stickerId = await this.stickerGenerationRepository.insert({
+        userId: auth.user.id,
+        assetId: id,
+        bbox: dto.bbox ?? null,
+        pointCoords: dto.pointCoords ?? null,
+        mlSuggestedMaskData: maskBuffer,
+        processingTimeMs,
+      });
+      const maskKey = `stickers/${id}/${stickerId}/mask.png`;
+      try {
+        await this.stickerS3.send(
+          new PutObjectCommand({ Bucket: this.stickerBucket, Key: maskKey, Body: maskBuffer, ContentType: 'image/png' }),
+        );
+        await this.stickerGenerationRepository.update(stickerId, { mlSuggestedMask: maskKey });
+      } catch {
+        // mask binary is already persisted in the DB row
+      }
     }
 
     return { mask: result.mask, stickerId };

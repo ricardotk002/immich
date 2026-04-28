@@ -38,6 +38,15 @@
   let markingsDataUrl: string | null = $state(null);
   let paintedCircles: { x: number; y: number; r: number }[] = [];
 
+  // Mask state – retained from generation for brush apply
+  let mlMaskBase64: string | null = null;
+  let usedBbox = false;
+  let previewNaturalW = 0;
+  let previewNaturalH = 0;
+  let outlineT = 0;
+  let userSavedMask: string | null = null;
+  let editedPixelsCount = 0;
+
   const dimensions = $derived(asset.exifInfo ? getDimensions(asset.exifInfo) : { width: 1920, height: 1080 });
   const originalW = $derived(dimensions.width ?? 1920);
   const originalH = $derived(dimensions.height ?? 1080);
@@ -144,6 +153,9 @@
 
     try {
       const body: Record<string, unknown> = {};
+      if (currentStickerId) {
+        body.existingStickerId = currentStickerId;
+      }
       if (currentRect) {
         body.bbox = [currentRect.x * originalW, currentRect.y * originalH, currentRect.w * originalW, currentRect.h * originalH];
       } else if (pointPos) {
@@ -161,7 +173,11 @@
       const { mask, stickerId } = (await response.json()) as { mask: string; stickerId: string };
       currentStickerId = stickerId;
       savedToLibrary = false;
-      await compositeWithMask(mask, !!currentRect);
+      mlMaskBase64 = mask;
+      usedBbox = !!currentRect;
+      userSavedMask = null;
+      editedPixelsCount = 0;
+      await compositeWithMask(mask, usedBbox);
       mode = 'result';
     } catch (err) {
       handleError(err, 'Failed to generate sticker');
@@ -209,8 +225,13 @@
     ctx.putImageData(imageData, 0, 0);
     originalImageData = ctx.getImageData(0, 0, w, h);
 
+    // Capture geometry so closeEdit can convert brush-circle coords to mask coords
+    previewNaturalW = w;
+    previewNaturalH = h;
+
     // White outline
     const outlineThickness = Math.max(4, Math.round(w / 120));
+    outlineT = outlineThickness;
     const outlined = document.createElement('canvas');
     outlined.width = w + outlineThickness * 2;
     outlined.height = h + outlineThickness * 2;
@@ -254,7 +275,11 @@
     fetch(`/api/assets/${asset.id}/sticker/${currentStickerId}/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ saved: true }),
+      body: JSON.stringify({
+        saved: true,
+        ...(userSavedMask ? { userSavedMask } : {}),
+        editedPixels: editedPixelsCount,
+      }),
     }).catch(() => {});
     const a = document.createElement('a');
     a.href = stickerDataUrl;
@@ -281,9 +306,77 @@
   });
 
   const closeEdit = () => {
-    if (markingsCanvas) {
-      markingsDataUrl = markingsCanvas.toDataURL('image/png');
+    if (paintedCircles.length === 0 || !originalImageData || previewNaturalW === 0) {
+      mode = 'result';
+      return;
     }
+
+    // Draw originalImageData onto a canvas and erase brush circles via destination-out.
+    // This avoids any mask-convention ambiguity and avoids a network round-trip.
+    const canvas = document.createElement('canvas');
+    canvas.width = previewNaturalW;
+    canvas.height = previewNaturalH;
+    const ctx = canvas.getContext('2d')!;
+    ctx.putImageData(originalImageData, 0, 0);
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    for (const { x, y, r } of paintedCircles) {
+      // paintedCircles are in sticker-canvas coords (includes outline padding on each side)
+      ctx.moveTo(x - outlineT + r, y - outlineT);
+      ctx.arc(x - outlineT, y - outlineT, r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Count pixels that went from opaque → transparent
+    const newData = ctx.getImageData(0, 0, previewNaturalW, previewNaturalH);
+    let count = 0;
+    for (let i = 3; i < originalImageData.data.length; i += 4) {
+      if (originalImageData.data[i] > 0 && newData.data[i] === 0) count++;
+    }
+    editedPixelsCount = count;
+    originalImageData = newData;
+
+    // Derive mask for server from the alpha channel, respecting the bbox/point convention
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = previewNaturalW;
+    maskCanvas.height = previewNaturalH;
+    const maskCtx = maskCanvas.getContext('2d')!;
+    const maskPixels = maskCtx.createImageData(previewNaturalW, previewNaturalH);
+    for (let i = 0; i < newData.data.length; i += 4) {
+      const alpha = newData.data[i + 3];
+      // bbox mask convention: foreground=0 (black), background=255 (white); server inverts
+      // point mask convention: foreground=255 (white), background=0 (black); server uses directly
+      const v = usedBbox ? 255 - alpha : alpha;
+      maskPixels.data[i]     = v;
+      maskPixels.data[i + 1] = v;
+      maskPixels.data[i + 2] = v;
+      maskPixels.data[i + 3] = 255;
+    }
+    maskCtx.putImageData(maskPixels, 0, 0);
+    userSavedMask = maskCanvas.toDataURL('image/png').split(',')[1];
+
+    // Re-apply the white outline to produce the updated sticker preview
+    const outlined = document.createElement('canvas');
+    outlined.width  = previewNaturalW  + outlineT * 2;
+    outlined.height = previewNaturalH + outlineT * 2;
+    const octx = outlined.getContext('2d')!;
+    const steps = 20;
+    for (let i = 0; i < steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      octx.drawImage(canvas, outlineT + Math.cos(angle) * outlineT, outlineT + Math.sin(angle) * outlineT);
+    }
+    octx.globalCompositeOperation = 'source-atop';
+    octx.fillStyle = 'white';
+    octx.fillRect(0, 0, outlined.width, outlined.height);
+    octx.globalCompositeOperation = 'source-over';
+    octx.drawImage(canvas, outlineT, outlineT);
+
+    stickerDataUrl = outlined.toDataURL('image/png');
+
+    paintedCircles = [];
+    markingsDataUrl = null;
     mode = 'result';
   };
 
@@ -341,7 +434,11 @@
       const resolveRes = await fetch(`/api/assets/${asset.id}/sticker/${currentStickerId}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saved: true }),
+        body: JSON.stringify({
+          saved: true,
+          ...(userSavedMask ? { userSavedMask } : {}),
+          editedPixels: editedPixelsCount,
+        }),
       });
       if (!resolveRes.ok) throw new Error(`Resolve failed: ${resolveRes.status}`);
 
@@ -373,8 +470,14 @@
     markingsDataUrl = null;
     paintedCircles = [];
     originalImageData = undefined;
-    currentStickerId = null;
     savedToLibrary = false;
+    mlMaskBase64 = null;
+    usedBbox = false;
+    userSavedMask = null;
+    editedPixelsCount = 0;
+    previewNaturalW = 0;
+    previewNaturalH = 0;
+    outlineT = 0;
     if (overlayCanvas) {
       const ctx = overlayCanvas.getContext('2d')!;
       ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
